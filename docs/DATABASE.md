@@ -887,13 +887,14 @@ Estas reglas viven en Actions de dominio, nunca en controladores, porque los com
 | Action | Invariante |
 |---|---|
 | `CreateDoctorAction` | Crea siempre `doctor_profiles` en la misma transacción. Calcula `name_normalized` y `slug`. Rechaza si hay coincidencia en `doctor_suppressions` |
-| `PublishDoctorAction` | Solo publica con ≥1 especialidad, ≥1 ubicación con ciudad válida y ≥1 contacto público. Fija `status='active'` y `published_at`. Purga la caché de CDN |
+| `PublishDoctorAction` | Solo publica con ≥1 especialidad, ≥1 ubicación con ciudad válida y ≥1 contacto público, y si ninguna supresión vigente coincide por colegiado, teléfono o correo. Fija `status='active'` y `published_at`. Purga la caché de CDN |
 | `UnpublishDoctorAction` | `status='inactive'`, purga CDN, mantiene `published_at` como histórico |
 | `ApproveClaimAction` | Transacción del §10.2 completa, incluido el rechazo de los claims rivales |
 | `VerifyDoctorAction` | Exige `verification_source` y registra `verified_by_user_id` y `verified_at` |
 | `MergeDoctorsAction` | §13. Manual, con confirmación explícita, nunca automática |
 | `ApplyImportBatchAction` | Solo aplica filas en `matched`, `new` o `approved`. Nunca publica |
 | `UpdateSlugAction` | Escribe `slug_redirects` antes de cambiar el slug. Nunca cambia un slug sin dejar el 301 |
+| `RevokeSuppressionAction` | Revoca una sola vez, con motivo y fecha de la solicitud. No borra la supresión ni republica fichas (§14.1) |
 
 **Regla de oro del repositorio:** si una de estas reglas aparece dentro de un controlador o de un recurso de Filament, es un bug. El único lugar correcto es la Action, porque el importador y la futura API móvil llaman a la misma.
 
@@ -1136,11 +1137,21 @@ CREATE TABLE doctor_suppressions (
     created_by_user_id ulid NULL REFERENCES users(id) ON DELETE SET NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
 
+    -- revocación: la persona pidió volver (migración 025)
+    revocation_requested_at timestamptz  NULL,   -- cuándo lo pidió
+    revocation_reason       varchar(255) NULL,   -- canal y cómo se verificó su identidad
+    revoked_by_user_id      ulid NULL REFERENCES users(id) ON DELETE SET NULL,
+    revoked_at              timestamptz  NULL,   -- cuándo se registró; NULL = vigente
+
     CONSTRAINT doctor_suppressions_has_key_chk
         CHECK (license_number IS NOT NULL
             OR email_normalized IS NOT NULL
             OR phone_normalized IS NOT NULL
-            OR name_normalized  IS NOT NULL)
+            OR name_normalized  IS NOT NULL),
+
+    CONSTRAINT doctor_suppressions_revocation_trace_chk
+        CHECK ((revoked_at IS NULL) = (revocation_reason IS NULL)
+           AND (revoked_at IS NULL) = (revocation_requested_at IS NULL))
 );
 
 CREATE INDEX doctor_suppressions_license_idx ON doctor_suppressions (country_id, license_number);
@@ -1149,6 +1160,19 @@ CREATE INDEX doctor_suppressions_name_idx    ON doctor_suppressions (country_id,
 ```
 
 Vas a publicar fichas de profesionales que nunca dieron su consentimiento; es la premisa del flujo de claim. Eso exige un canal de oposición y, sobre todo, **que la supresión sobreviva al siguiente lote de importación**. Sin esta tabla, marcar la ficha como `inactive` no basta: el import la recrea y tienes el mismo problema reputacional repetido.
+
+**Dónde se aplica.** Una supresión vigente (`revoked_at IS NULL`) se consulta en cuatro puntos:
+
+- `CreateDoctorAction`, por colegiado y por nombre (el nombre se puede confirmar como homónimo).
+- `import:match`, por colegiado, teléfono y correo, más un aviso por nombre.
+- Al añadir una clave fuerte a una ficha existente: `DoctorContactsAction` para teléfono y correo, `UpdateDoctorAction` para el colegiado.
+- `PublishDoctorAction`, como última puerta, por colegiado, teléfono y correo.
+
+El nombre solo no bloquea la publicación: el homónimo ya se confirmó al crear la ficha. La supresión **no despublica sola** las fichas que ya existían. El backoffice las lista y un admin las retira tras revisarlas, porque una coincidencia por nombre puede ser otra persona.
+
+**Revocación.** Un médico que pidió salir puede querer volver. La supresión **no se borra ni se edita**: se revoca una sola vez (`RevokeSuppressionAction`), dejando la fecha de la solicitud, el canal, cómo se verificó la identidad y quién la registró. Desde ese momento deja de bloquear. Si la persona vuelve a pedir salir, se crea una supresión nueva, y el historial queda como una secuencia de registros. Revocar **no republica nada**: las fichas vuelven al sitio pasando otra vez por `PublishDoctorAction`. Las filas `suppressed` de lotes anteriores se quedan como histórico; el siguiente lote recoge al médico.
+
+No hay columna `status`: vigente equivale a `revoked_at IS NULL`. Los índices no se rehacen como parciales sobre esa condición porque la tabla será pequeña.
 
 > No soy abogado y el detalle debe validarse con asesoría local en cada mercado. Costa Rica tiene la Ley 8968 y su agencia (PRODHAB); República Dominicana, la Ley 172-13. A nivel de producto, este mecanismo es innegociable.
 
@@ -1232,6 +1256,7 @@ Registrados además desde el backoffice (Etapas 1–3):
 - `user.reactivated`, `role.removed` y `slug.updated` (con los slugs anterior y nuevo en `properties`).
 - `doctor.suspension_lifted` y `doctor.verification_rejected` (con el motivo).
 - `location.updated`, `catalog.activated` y `catalog.deactivated`.
+- `suppression.revoked` (con el motivo en `properties`).
 - Los cambios del agregado (especialidades, ubicaciones, contactos, idiomas) se registran como `doctor.updated`, con `part` y `op` en `properties`.
 
 El historial es lo único de este documento que no se puede añadir después. Media jornada de trabajo ahora, irrecuperable más tarde.
@@ -1266,6 +1291,7 @@ El historial es lo único de este documento que no se puede añadir después. Me
 022  slug_redirects
 023  doctor_contact_events
 024  activity_log                  (spatie)
+025  doctor_suppressions: columnas de revocación (§14.1)
 ```
 
 La 000 es imprescindible antes que todo: `doctors.search_vector` referencia `es_unaccent`, y todos los PK usan el dominio `ulid`.
@@ -1380,7 +1406,7 @@ Y las decisiones que las mantienen desacopladas:
 - [ ] Ningún índice sobre `(latitude, longitude)`
 
 **Dominio**
-- [ ] Las ocho Actions del §11 existen y tienen test
+- [ ] Las nueve Actions del §11 existen y tienen test
 - [ ] Ninguna regla de negocio dentro de un controlador o recurso de Filament
 - [ ] `PublishDoctorAction` rechaza fichas sin especialidad, ubicación o contacto público
 - [ ] Las fichas incompletas se sirven con `noindex`
@@ -1410,5 +1436,5 @@ Y las decisiones que las mantienen desacopladas:
 6. Solo se fusiona con evidencia fuerte; la ambigüedad va a revisión humana.
 7. Ninguna ficha se publica sin especialidad, ubicación y contacto público.
 8. Ningún slug cambia sin dejar un 301.
-9. Ninguna ficha suprimida vuelve a crearse.
+9. Ninguna ficha suprimida vuelve a crearse ni a publicarse mientras la supresión esté vigente.
 10. Membership, reviews y booking extienden el núcleo; no lo modifican.

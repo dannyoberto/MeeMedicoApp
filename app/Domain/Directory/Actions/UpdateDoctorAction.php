@@ -6,6 +6,7 @@ use App\Domain\Directory\Cdn\DoctorCachePurge;
 use App\Domain\Directory\Enums\LicenseSource;
 use App\Domain\Directory\Enums\VerificationStatus;
 use App\Domain\Directory\Support\NameNormalizer;
+use App\Domain\Directory\Support\SuppressionCheck;
 use App\Models\Doctor;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +41,12 @@ class UpdateDoctorAction
                 ->exists();
             if ($taken) {
                 throw ValidationException::withMessages(['license_number' => 'Ya existe otra ficha con ese número de colegiado en este país.']);
+            }
+
+            if ($fields['license_number'] !== $doctor->license_number
+                && $suppression = SuppressionCheck::strongMatch($doctor->country_id, $fields['license_number'])) {
+                throw ValidationException::withMessages(['license_number' => 'Ese colegiado es de una persona que pidió no aparecer en el directorio (supresión del '
+                    .$suppression->requested_at->format('d/m/Y').').']);
             }
 
             if ($fields['license_number'] === null) {

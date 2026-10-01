@@ -8,6 +8,7 @@ use App\Filament\Resources\Doctors\Pages\EditDoctor;
 use App\Filament\Resources\Doctors\RelationManagers\ContactsRelationManager;
 use App\Filament\Resources\Doctors\RelationManagers\LocationsRelationManager;
 use App\Filament\Resources\Doctors\RelationManagers\SpecialtiesRelationManager;
+use App\Filament\Resources\DoctorSuppressions\Pages\ListDoctorSuppressions;
 use App\Filament\Resources\DoctorSuppressions\Pages\ViewDoctorSuppression;
 use App\Models\Doctor;
 use Illuminate\Support\Facades\Bus;
@@ -138,4 +139,32 @@ it('una supresión permite despublicar las fichas que coinciden', function () {
     Livewire::test(ViewDoctorSuppression::class, ['record' => $suppression->id])->mountAction('unpublishMatches')->callMountedAction();
 
     expect($doctor->fresh()->status->value)->toBe('inactive');
+});
+
+it('una supresión se revoca desde su vista y deja de ofrecer despublicar', function () {
+    publishedDoctor(['license_number' => 'MED-4821']);
+    $suppression = app(CreateSuppressionAction::class)->execute(country(), 'MED-4821', null, null, null, 'Pidió salir', now(), null);
+
+    Livewire::test(ViewDoctorSuppression::class, ['record' => $suppression->id])
+        ->assertActionVisible('unpublishMatches')
+        ->mountAction('revoke')
+        ->set('mountedActions.0.data.reason', 'Correo; confirmó por llamada')
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    expect($suppression->fresh()->isRevoked())->toBeTrue();
+
+    Livewire::test(ViewDoctorSuppression::class, ['record' => $suppression->id])
+        ->assertActionHidden('unpublishMatches')
+        ->assertActionHidden('revoke')
+        ->assertSeeText('Revocada');
+});
+
+it('el listado de supresiones explica para qué sirven, encima de la tabla', function () {
+    $suppression = app(CreateSuppressionAction::class)->execute(country(), 'MED-4821', null, null, null, 'Pidió salir', now(), null);
+
+    Livewire::test(ListDoctorSuppressions::class)
+        ->assertSeeText('¿Qué es una supresión?')
+        ->assertSeeText('Revocar supresión')
+        ->assertCanSeeTableRecords([$suppression]);
 });

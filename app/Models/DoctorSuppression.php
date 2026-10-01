@@ -9,7 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Médicos que pidieron salir del directorio. El importador la consulta antes de crear
- * cualquier ficha (DATABASE.md §14.1).
+ * cualquier ficha (DATABASE.md §14.1). Mientras está vigente (revoked_at nulo) bloquea;
+ * si la persona quiere volver, se revoca con RevokeSuppressionAction y el registro queda.
  */
 #[Fillable([
     'country_id',
@@ -31,7 +32,14 @@ class DoctorSuppression extends Model
     {
         return [
             'requested_at' => 'datetime',
+            'revocation_requested_at' => 'datetime',
+            'revoked_at' => 'datetime',
         ];
+    }
+
+    public function isRevoked(): bool
+    {
+        return $this->revoked_at !== null;
     }
 
     public function country(): BelongsTo
@@ -42,5 +50,10 @@ class DoctorSuppression extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    public function revoker(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'revoked_by_user_id');
     }
 }

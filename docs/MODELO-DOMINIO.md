@@ -126,7 +126,23 @@ La fila conserva el **dato original intacto**, lo cual permite reprocesar un lot
 
 El registro de que una persona pidió no aparecer.
 
-Existe porque vamos a publicar fichas de profesionales que nunca dieron su consentimiento, y porque marcar una ficha como inactiva no basta: la siguiente importación la recrearía. El importador consulta esta lista antes de crear cualquier ficha.
+Existe porque vamos a publicar fichas de profesionales que nunca dieron su consentimiento, y porque marcar una ficha como inactiva no basta: la siguiente importación la recrearía. El importador consulta esta lista antes de crear cualquier ficha, y ninguna ficha que coincida por colegiado, teléfono o correo puede publicarse mientras la supresión esté vigente.
+
+**Es reversible, pero no se borra.** Un médico que pidió salir puede ver que el directorio le conviene y querer volver. Entonces la supresión se **revoca**: queda registrado cuándo lo pidió, por qué canal, cómo se verificó que era la misma persona y quién lo registró. A partir de ahí deja de bloquear, pero su ficha no reaparece sola: un administrador la publica, pasando por la misma puerta de calidad que cualquier otra. Si más adelante vuelve a pedir salir, se registra una supresión nueva. El historial completo queda como prueba ante una reclamación.
+
+La verificación de identidad es lo delicado: una revocación falsa publicaría a alguien que pidió no aparecer. Por eso el motivo es obligatorio y debe decir cómo se comprobó la identidad, por ejemplo con una llamada al teléfono que ya figuraba en la ficha.
+
+### Canal de solicitud — pendiente para la fase de frontend
+
+Hoy la solicitud llega por canales informales y un administrador la registra a mano. Para el lanzamiento del sitio público:
+
+- **En la ficha pública**, un enlace estático «¿Eres este médico? Solicita la baja o corrige tus datos». Es HTML fijo, así que la ficha sigue siendo cacheable entera en CDN.
+- **WhatsApp:** un enlace `wa.me` al número de operación del país, con un mensaje prellenado que incluye el nombre y la URL de la ficha. El número vive en configuración, no en la base.
+- **Formulario web:** una isla de React que envía a `POST /api/v1/suppression-requests`, sin sesión, con límite de peticiones y protección anti-bot. Pide nombre, colegiado, teléfono o correo de contacto y mensaje, y **envía un correo al buzón de operación del país**. No crea la supresión ni despublica nada: el administrador verifica la identidad y la registra en el backoffice.
+- **El mismo canal sirve para pedir volver** (revocación).
+- **Cuando exista el claim:** si una persona con supresión vigente reclama su ficha, primero se revoca la supresión.
+
+**Riesgo conocido:** con el correo como única cola, no queda traza en el sistema de cuándo llegó cada solicitud ni de si se respondió a tiempo. Si el volumen crece o la asesoría legal de cada país exige acreditar plazos de respuesta, la solución es una tabla `suppression_requests` que guarde la solicitud recibida antes de que un humano la resuelva. Los plazos legales concretos hay que validarlos con asesoría local (Ley 8968 en Costa Rica, Ley 172-13 en República Dominicana).
 
 ## 2.11 SlugRedirect
 
@@ -187,7 +203,7 @@ Reglas que el modelo garantiza siempre. Las que la base de datos no puede impone
 3. **No se publica un Doctor sin al menos una especialidad, una ubicación con ciudad y un contacto público.** Miles de fichas vacías indexadas degradan el posicionamiento del sitio entero: posicionan peor que no existir.
 4. Una ficha incompleta nunca se sirve indexable.
 5. Un slug no cambia sin dejar redirección permanente.
-6. Una ficha suprimida no vuelve a crearse.
+6. Una ficha suprimida no vuelve a crearse ni a publicarse mientras la supresión esté vigente.
 7. Una ficha fusionada no se borra: queda apuntando a la superviviente, y su dirección web sigue resolviendo.
 8. La cadena ciudad → región → país es siempre consistente.
 

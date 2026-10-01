@@ -5,15 +5,13 @@ namespace App\Filament\Resources\Doctors\RelationManagers;
 use App\Domain\Directory\Actions\DoctorLocationsAction;
 use App\Domain\Directory\Enums\LocationStatus;
 use App\Domain\Directory\Enums\LocationType;
-use App\Domain\Geo\Enums\CityStatus;
 use App\Filament\Resources\Doctors\RelationManagers\Concerns\ChangesDoctorAggregate;
 use App\Filament\Resources\Locations\LocationResource;
-use App\Models\City;
+use App\Filament\Resources\Locations\Schemas\LocationForm;
 use App\Models\Location;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Grid;
@@ -62,21 +60,7 @@ class LocationsRelationManager extends RelationManager
                     ->label('Nueva ubicación')
                     ->icon(Heroicon::OutlinedPlus)
                     ->schema([
-                        Select::make('city_id')
-                            ->label('Ciudad')
-                            ->options(fn () => City::where('status', CityStatus::Active)
-                                ->with('country:id,name')->orderBy('name')->get()
-                                ->mapWithKeys(fn (City $c) => [$c->id => "{$c->name} ({$c->country->name})"]))
-                            ->searchable()
-                            ->required(),
-                        TextInput::make('name')->label('Nombre del lugar')->placeholder('Torre Médica Momentum, piso 4')->maxLength(200),
-                        TextInput::make('address')->label('Dirección')->required()->maxLength(255),
-                        TextInput::make('address_2')->label('Complemento')->maxLength(255),
-                        Grid::make(3)->schema([
-                            TextInput::make('postal_code')->label('Código postal')->maxLength(30),
-                            TextInput::make('latitude')->label('Latitud')->numeric()->minValue(-90)->maxValue(90),
-                            TextInput::make('longitude')->label('Longitud')->numeric()->minValue(-180)->maxValue(180),
-                        ]),
+                        Grid::make(2)->schema(LocationForm::fields(fn () => $this->doctor()->country_id)),
                         ...self::linkFields(),
                     ])
                     ->authorize(fn () => $this->canChangeAggregate())
@@ -92,11 +76,14 @@ class LocationsRelationManager extends RelationManager
                     ->schema([
                         Select::make('location_id')
                             ->label('Ubicación')
+                            ->helperText('Busca por nombre del lugar o dirección. Primero salen las del país del médico.')
                             ->getSearchResultsUsing(fn (string $search) => Location::where('status', LocationStatus::Active)
                                 ->whereNotIn('id', $this->doctor()->locations()->pluck('locations.id'))
                                 ->where(fn ($q) => $q->where('address', 'ilike', "%{$search}%")->orWhere('name', 'ilike', "%{$search}%"))
-                                ->with('city:id,name')->limit(20)->get()
-                                ->mapWithKeys(fn (Location $l) => [$l->id => trim("{$l->name} · {$l->address} ({$l->city->name})", ' ·')]))
+                                ->orderByRaw('country_id = ? desc', [$this->doctor()->country_id])
+                                ->orderBy('name')->orderBy('address')
+                                ->with(['city:id,name', 'country:id,name'])->limit(20)->get()
+                                ->mapWithKeys(fn (Location $l) => [$l->id => trim("{$l->name} · {$l->address} ({$l->city->name}, {$l->country->name})", ' ·')]))
                             ->searchable()
                             ->required(),
                         ...self::linkFields(),

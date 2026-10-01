@@ -18,7 +18,7 @@ use UnitEnum;
 
 /**
  * Personas que pidieron no aparecer en el directorio (DATABASE.md §14.1).
- * Se crean y se consultan; nunca se editan ni se borran.
+ * Se crean, se consultan y se revocan si la persona quiere volver; nunca se editan ni se borran.
  */
 class DoctorSuppressionResource extends Resource
 {

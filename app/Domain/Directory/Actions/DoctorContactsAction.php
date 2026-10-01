@@ -5,6 +5,7 @@ namespace App\Domain\Directory\Actions;
 use App\Domain\Directory\Enums\ContactSource;
 use App\Domain\Directory\Enums\ContactType;
 use App\Domain\Directory\Support\PhoneNormalizer;
+use App\Domain\Directory\Support\SuppressionCheck;
 use App\Models\Doctor;
 use App\Models\DoctorContact;
 use App\Models\User;
@@ -36,6 +37,21 @@ class DoctorContactsAction
         }
 
         $normalized = $this->normalize($doctor, $type, (string) $data['value'], $locationId);
+
+        // Un teléfono o correo de alguien que pidió no aparecer no vuelve a entrar (§14.1).
+        // Solo un valor nuevo: el que ya estaba lo resuelve la puerta de publicación.
+        $suppressed = match (true) {
+            $contact?->value_normalized === $normalized => null,
+            in_array($type, self::PHONE_TYPES, true) => SuppressionCheck::strongMatch($doctor->country_id, null, [$normalized]),
+            $type === ContactType::Email => SuppressionCheck::strongMatch($doctor->country_id, null, [], [$normalized]),
+            default => null,
+        };
+        if ($suppressed) {
+            throw ValidationException::withMessages([
+                'value' => 'Este contacto es de una persona que pidió no aparecer en el directorio (supresión del '
+                    .$suppressed->requested_at->format('d/m/Y').').',
+            ]);
+        }
 
         $duplicate = $doctor->contacts()
             ->where('type', $type)

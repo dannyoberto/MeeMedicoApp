@@ -153,3 +153,15 @@ describe('geografía', function () {
         ]));
     });
 });
+
+describe('supresiones', function () {
+    it('una revocación exige motivo y fecha de la solicitud', function (array $attrs) {
+        violates('doctor_suppressions_revocation_trace_chk', fn () => DB::table('doctor_suppressions')->insert([
+            'id' => ulid('S9'), 'country_id' => $this->cr, 'license_number' => 'MED-1', 'requested_at' => now(), ...$attrs,
+        ]));
+    })->with([
+        'sin motivo' => [['revoked_at' => now(), 'revocation_requested_at' => now()]],
+        'sin fecha de solicitud' => [['revoked_at' => now(), 'revocation_reason' => 'x']],
+        'motivo sin revocar' => [['revocation_reason' => 'x']],
+    ]);
+});

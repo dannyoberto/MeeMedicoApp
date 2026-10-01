@@ -6,12 +6,14 @@ use App\Domain\Directory\Cdn\DoctorCachePurge;
 use App\Domain\Directory\Enums\DoctorStatus;
 use App\Domain\Directory\Exceptions\DirectoryRuleException;
 use App\Domain\Directory\Support\PublicationRequirements;
+use App\Domain\Directory\Support\SuppressionCheck;
 use App\Models\Doctor;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Publica una ficha si pasa la puerta de calidad (AGENTS.md §3, DATABASE.md §11).
+ * Publica una ficha si pasa la puerta de calidad (AGENTS.md §3, DATABASE.md §11)
+ * y no coincide con una supresión vigente (§14.1).
  * La usan el backoffice y, en la Etapa 6, import:publish fila por fila.
  */
 class PublishDoctorAction
@@ -31,6 +33,16 @@ class PublishDoctorAction
 
     private function publish(Doctor $doctor, ?User $actor): void
     {
+        // Última puerta de la supresión: cubre fichas anteriores a ella, contactos añadidos
+        // después y la ficha que se despublicó por supresión. Solo claves fuertes: el
+        // homónimo por nombre se confirmó al crear la ficha.
+        if ($suppression = SuppressionCheck::forDoctor($doctor)) {
+            throw new DirectoryRuleException(
+                'Esta persona pidió no aparecer en el directorio (supresión del '
+                .$suppression->requested_at->format('d/m/Y').'). Si quiere volver, revoca la supresión antes de publicar.',
+            );
+        }
+
         if ($missing = PublicationRequirements::missing($doctor)) {
             throw new DirectoryRuleException('La ficha no cumple los requisitos para publicarse.', array_values($missing));
         }
