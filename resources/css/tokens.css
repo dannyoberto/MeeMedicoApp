@@ -1,0 +1,175 @@
+/* =====================================================================
+   MeeMedico — Design tokens (sitio público: Blade + islas React)
+   Fuente única de verdad. Ver docs/design-system.md
+   Capas:
+     1. Primitivos  (:root)   -> valores crudos. NO generan utilidades.
+     2. Semánticos  (@theme)  -> generan utilidades Tailwind (bg-primary...).
+     3. Componentes (components.css) -> .btn, .field, .badge, .alert, .card
+   Regla: plantillas y TSX usan SOLO la capa 2 y 3.
+   ===================================================================== */
+
+/* ---------- 1. PRIMITIVOS -------------------------------------------- */
+:root {
+  /* Petróleo — color de interacción y confianza */
+  --petrol-50:  #EEF5F6;
+  --petrol-100: #D5E6EA;
+  --petrol-200: #ABCDD5;
+  --petrol-300: #7AAEBA;
+  --petrol-400: #4A8C9C;
+  --petrol-500: #2E7384;
+  --petrol-600: #1B5E6F;
+  --petrol-700: #164D5B;
+  --petrol-800: #123C4A;
+  --petrol-900: #0D2E39;
+  --petrol-950: #081E26;
+
+  /* Oro — derivado del logo. Solo marca y premium. Nunca texto < 700 sobre blanco */
+  --gold-50:  #FBF7EC;
+  --gold-100: #F5EACB;
+  --gold-200: #EBD69A;
+  --gold-300: #E0C27A;
+  --gold-400: #D4AF62;
+  --gold-500: #C29A4C;
+  --gold-600: #A6803A;
+  --gold-700: #8A6D2F;
+  --gold-800: #6E5520;
+  --gold-900: #533F17;
+  --gold-950: #3A2C10;
+
+  /* Gris frío */
+  --gray-0:   #FFFFFF;
+  --gray-50:  #F6F8F9;
+  --gray-100: #EDF1F3;
+  --gray-200: #DDE3E7;
+  --gray-300: #C5CED4;
+  --gray-400: #9AA7AF;
+  --gray-500: #647179;
+  --gray-600: #56636B;
+  --gray-700: #414D55;
+  --gray-800: #2B353B;
+  --gray-900: #1A2328;
+  --gray-950: #0F161A;
+
+  /* Estados (50 fondo · 200 borde · 600 sólido · 800 texto sobre 50) */
+  --green-50: #EAF6EF;  --green-200: #B9DFC8; --green-600: #1E7A4C; --green-800: #124D30;
+  --amber-50: #FDF6E7;  --amber-200: #F3D596; --amber-600: #A86A0B; --amber-800: #6B4306;
+  --red-50:   #FDEEEC;  --red-200:   #F4BDB6; --red-600:   #B42318; --red-800:   #6F1A14;
+  --blue-50:  #EAF2FB;  --blue-200:  #B5D0EE; --blue-600:  #1F5FA8; --blue-800:  #163E6B;
+}
+
+/* ---------- 2. SEMÁNTICOS (generan utilidades) ------------------------ */
+@theme {
+  /* Elimina la paleta por defecto de Tailwind: nadie puede usar bg-pink-500 */
+  --color-*: initial;
+  --color-white: #FFFFFF;
+
+  /* Superficies */
+  --color-canvas:          var(--gray-50);   /* fondo de página */
+  --color-surface:         var(--gray-0);    /* tarjetas, formularios */
+  --color-surface-muted:   var(--gray-100);  /* zonas secundarias, hover de filas */
+  --color-surface-inverse: var(--petrol-800);/* header/footer oscuro, bloque de marca */
+
+  /* Texto */
+  --color-fg:          var(--gray-900);  /* texto principal      15.9:1 */
+  --color-fg-muted:    var(--gray-600);  /* texto secundario      6.2:1 */
+  --color-fg-subtle:   var(--gray-500);  /* metadatos, placeholder 5.0:1 */
+  --color-fg-inverse:  var(--gray-0);    /* texto sobre fondos oscuros */
+  --color-fg-link:     var(--petrol-600);
+
+  /* Bordes */
+  --color-border:        var(--gray-200); /* divisores decorativos */
+  --color-border-strong: var(--gray-300); /* tarjetas destacadas */
+  --color-border-input:  var(--gray-500); /* controles: >= 3:1 (WCAG 1.4.11) */
+
+  /* Acción principal */
+  --color-primary:         var(--petrol-600);
+  --color-primary-hover:   var(--petrol-700);
+  --color-primary-fg:      var(--gray-0);
+  --color-primary-soft:    var(--petrol-50);
+  --color-primary-soft-fg: var(--petrol-700);
+
+  /* Marca / premium (oro) */
+  --color-brand:        var(--gold-400);  /* rellenos, iconos grandes, logo */
+  --color-brand-fg:     var(--gold-800);  /* texto dorado sobre claro 7.0:1 */
+  --color-premium:      var(--gold-50);
+  --color-premium-fg:   var(--gold-800);
+  --color-premium-line: var(--gold-200);
+
+  /* Tonos de estado — mismos nombres que los colores de Filament */
+  --color-success:      var(--green-50);
+  --color-success-fg:   var(--green-800);
+  --color-success-line: var(--green-200);
+  --color-success-solid:var(--green-600);
+
+  --color-warning:      var(--amber-50);
+  --color-warning-fg:   var(--amber-800);
+  --color-warning-line: var(--amber-200);
+  --color-warning-solid:var(--amber-600);
+
+  --color-danger:       var(--red-50);
+  --color-danger-fg:    var(--red-800);
+  --color-danger-line:  var(--red-200);
+  --color-danger-solid: var(--red-600);
+
+  --color-info:         var(--blue-50);
+  --color-info-fg:      var(--blue-800);
+  --color-info-line:    var(--blue-200);
+  --color-info-solid:   var(--blue-600);
+
+  --color-neutral:      var(--gray-100);
+  --color-neutral-fg:   var(--gray-700);
+  --color-neutral-line: var(--gray-200);
+
+  /* Foco */
+  --color-focus: var(--petrol-500);
+
+  /* Tipografía */
+  --font-sans: "Inter", "Inter Fallback", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  --text-xs:   0.8125rem;  --text-xs--line-height: 1.25rem;   /* 13px, mínimo absoluto */
+  --text-sm:   0.875rem;   --text-sm--line-height: 1.375rem;  /* 14px */
+  --text-base: 1rem;       --text-base--line-height: 1.625rem;/* 16px, cuerpo */
+  --text-lg:   1.125rem;   --text-lg--line-height: 1.75rem;   /* 18px */
+  --text-xl:   1.25rem;    --text-xl--line-height: 1.75rem;   /* 20px */
+  --text-2xl:  1.5rem;     --text-2xl--line-height: 2rem;     /* 24px */
+  --text-3xl:  1.875rem;   --text-3xl--line-height: 2.375rem; /* 30px */
+  --text-4xl:  2.25rem;    --text-4xl--line-height: 2.75rem;  /* 36px */
+
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+
+  /* Forma */
+  --radius-sm:   0.375rem; /* 6px  chips, badges */
+  --radius-md:   0.5rem;   /* 8px  botones, inputs */
+  --radius-lg:   0.75rem;  /* 12px tarjetas */
+  --radius-xl:   1rem;     /* 16px paneles, hojas móviles */
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px rgb(15 22 26 / 0.06);
+  --shadow-md: 0 4px 12px rgb(15 22 26 / 0.08), 0 1px 3px rgb(15 22 26 / 0.06);
+
+  /* Layout */
+  --container-prose:   42rem;  /* texto largo, formularios de una columna */
+  --container-content: 72rem;  /* ancho máximo del sitio */
+}
+
+/* ---------- Fuente (autoalojada, un solo archivo variable) ------------- */
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/InterVariable-latin.woff2") format("woff2");
+  font-weight: 400 600;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2190-2199, U+2212;
+}
+/* Fallback con métricas ajustadas para evitar CLS al cambiar de fuente.
+   Valores aproximados: verificar con fontaine/capsize antes de producción. */
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial");
+  size-adjust: 107%;
+  ascent-override: 90%;
+  descent-override: 22.5%;
+  line-gap-override: 0%;
+}

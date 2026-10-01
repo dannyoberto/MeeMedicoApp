@@ -1,0 +1,89 @@
+<?php
+
+namespace App\Domain\Directory\Actions;
+
+use App\Domain\Directory\Cdn\DoctorCachePurge;
+use App\Domain\Directory\Enums\LicenseSource;
+use App\Domain\Directory\Enums\VerificationStatus;
+use App\Domain\Directory\Support\NameNormalizer;
+use App\Models\Doctor;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+/**
+ * Edición de datos y perfil. NO cambia el slug: eso es UpdateSlugAction, que deja el 301.
+ * Corregir el nombre no altera la URL ya indexada.
+ */
+class UpdateDoctorAction
+{
+    private const DOCTOR_FIELDS = ['first_name', 'last_name', 'professional_name', 'gender', 'license_number', 'license_source'];
+
+    private const PROFILE_FIELDS = ['headline', 'bio', 'education', 'experience'];
+
+    /**
+     * @param  array<string, mixed>  $data  campos de doctors y de doctor_profiles
+     *
+     * @throws ValidationException (clave: license_number)
+     */
+    public function execute(Doctor $doctor, array $data, ?User $actor): Doctor
+    {
+        $fields = array_intersect_key($data, array_flip(self::DOCTOR_FIELDS));
+        $profile = array_intersect_key($data, array_flip(self::PROFILE_FIELDS));
+
+        if (array_key_exists('license_number', $fields)) {
+            $fields['license_number'] = filled($fields['license_number']) ? trim($fields['license_number']) : null;
+
+            $taken = $fields['license_number'] && Doctor::where('country_id', $doctor->country_id)
+                ->where('license_number', $fields['license_number'])
+                ->whereKeyNot($doctor->getKey())
+                ->exists();
+            if ($taken) {
+                throw ValidationException::withMessages(['license_number' => 'Ya existe otra ficha con ese número de colegiado en este país.']);
+            }
+
+            if ($fields['license_number'] === null) {
+                $fields['license_source'] = null;
+            } elseif (blank($fields['license_source'] ?? $doctor->license_source)) {
+                $fields['license_source'] = LicenseSource::Admin->value;
+            }
+        }
+
+        return DoctorCachePurge::around($doctor, fn () => DB::transaction(function () use ($doctor, $fields, $profile, $actor) {
+            $doctor->fill($fields);
+            $doctor->forceFill(['name_normalized' => NameNormalizer::normalize("{$doctor->first_name} {$doctor->last_name}")]);
+
+            // Lo verificado era ESTE número de colegiado: si cambia, la insignia no se
+            // transfiere (MODELO-IDENTIDAD.md §6). Corregir el nombre no la afecta.
+            $licenseChanged = $doctor->isDirty('license_number');
+            if ($licenseChanged && $doctor->verification_status === VerificationStatus::Verified) {
+                $doctor->forceFill([
+                    'verification_status' => VerificationStatus::Unverified,
+                    'verification_source' => null,
+                    'verified_at' => null,
+                    'verified_by_user_id' => null,
+                    'license_verified_at' => null,
+                ]);
+            }
+
+            $changes = collect($doctor->getDirty())->except('updated_at')->keys()->all();
+            $doctor->save();
+
+            $doctorProfile = $doctor->profile()->firstOrCreate();
+            $doctorProfile->fill($profile);
+            $changes = [...$changes, ...array_map(fn ($k) => "profile.{$k}", array_keys($doctorProfile->getDirty()))];
+            $doctorProfile->save();
+
+            if ($changes !== []) {
+                activity()
+                    ->performedOn($doctor)
+                    ->causedBy($actor)
+                    ->event('doctor.updated')
+                    ->withProperties(['fields' => $changes, 'verification_revoked' => $licenseChanged && in_array('verification_status', $changes, true)])
+                    ->log('doctor.updated');
+            }
+
+            return $doctor;
+        }));
+    }
+}

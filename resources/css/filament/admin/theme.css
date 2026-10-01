@@ -1,0 +1,110 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+/* =====================================================================
+   MeeMedico — ajustes del backoffice sobre Filament 5
+   Referencia visual: docs/Backoffice · Panel (Filament con tokens MeeMedico).png
+   Reglas (design-system.md §12): solo clases .fi-* estables, sin reescribir
+   plantillas, y los colores vienen de BrandColors (= tokens.css).
+   Principio de la guía: bordes antes que sombras (§6).
+   ===================================================================== */
+
+/* ---------- Estructura: barra lateral y superior blancas con borde ---------- */
+.fi-sidebar {
+    @apply lg:border-e lg:border-gray-200 lg:bg-white dark:lg:border-white/10 dark:lg:bg-gray-900;
+}
+
+.fi-topbar {
+    @apply border-b border-gray-200 shadow-none ring-0 dark:border-white/10;
+}
+
+/* Elemento activo del menú: fondo petróleo suave, texto petróleo (primary-soft). */
+.fi-sidebar-item {
+    &.fi-active > .fi-sidebar-item-btn {
+        @apply bg-primary-50 dark:bg-primary-400/10;
+
+        & > .fi-sidebar-item-label {
+            @apply font-medium text-primary-700 dark:text-primary-300;
+        }
+    }
+}
+
+.fi-sidebar-item-label {
+    @apply text-gray-700 dark:text-gray-200;
+}
+
+.fi-sidebar-group-label {
+    @apply text-xs font-medium text-gray-500 dark:text-gray-400;
+}
+
+/* ---------- Superficies: tarjetas con borde, sin sombra ---------- */
+.fi-section {
+    &:not(.fi-section-not-contained) {
+        &:not(.fi-aside) {
+            @apply shadow-none ring-gray-200 dark:ring-white/10;
+        }
+
+        &.fi-aside > .fi-section-content-ctn {
+            @apply shadow-none ring-gray-200 dark:ring-white/10;
+        }
+    }
+}
+
+.fi-ta-ctn,
+.fi-wi-stats-overview-stat {
+    @apply shadow-none ring-gray-200 dark:ring-white/10;
+}
+
+/* ---------- Tablas: cabecera en gris, texto secundario ---------- */
+.fi-ta-header-cell {
+    @apply bg-gray-50 font-medium text-gray-600 dark:bg-white/5 dark:text-gray-300;
+}
+
+/* ---------- Encabezado de página ---------- */
+.fi-header-subheading {
+    @apply text-gray-600 dark:text-gray-400;
+}
+
+/* ---------- Controles: borde con contraste >= 3:1 (WCAG 1.4.11, §4.1 border-input) ---------- */
+.fi-input-wrp {
+    @apply shadow-none ring-gray-500/60 dark:ring-white/20;
+}
+
+/* ---------- Badges: fondo 50, borde 200, texto 800 (clases .badge-* del sitio público) ---------- */
+.fi-badge {
+    &.fi-color {
+        @apply text-color-800 ring-color-200 dark:text-color-200 dark:ring-color-400/30;
+    }
+}
+
+/* ---------- Marca ---------- */
+/* Etiqueta "Admin" junto al logo: oro de marca (§4.3, uso de marca permitido).
+   'premium' es un color propio: Filament no genera utilidades para él, pero sí
+   publica su escala como variables CSS (--premium-50 … --premium-950). */
+.mm-env-badge {
+    @apply rounded-md border px-1.5 py-0.5 text-xs font-medium;
+    border-color: var(--premium-200);
+    background-color: var(--premium-50);
+    color: var(--premium-800);
+}
+
+.dark .mm-env-badge {
+    border-color: color-mix(in oklab, var(--premium-400) 30%, transparent);
+    background-color: color-mix(in oklab, var(--premium-400) 10%, transparent);
+    color: var(--premium-200);
+}
+
+/* Nombre y rol junto al avatar (render hook USER_MENU_BEFORE). */
+.mm-user-summary {
+    @apply me-3 hidden flex-col items-end text-end leading-tight sm:flex;
+}
+
+.mm-user-summary-name {
+    @apply text-sm font-medium text-gray-900 dark:text-white;
+}
+
+.mm-user-summary-role {
+    @apply text-xs text-gray-500 dark:text-gray-400;
+}
