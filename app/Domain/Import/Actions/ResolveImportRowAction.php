@@ -10,9 +10,12 @@ use App\Domain\Import\Support\ImportBatchCounters;
 use App\Domain\Import\Support\RowGroup;
 use App\Domain\Import\Support\RowIssue;
 use App\Models\Doctor;
+use App\Models\ImportBatch;
 use App\Models\ImportRow;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 /**
  * Decisión humana sobre un médico en revisión (§12.2, "resolución humana"). Se aplica
@@ -28,6 +31,61 @@ class ResolveImportRowAction
     {
         $batch = $row->batch;
         $group = RowGroup::from($batch->rows()->get())->first(fn (RowGroup $g) => $g->rows->contains('id', $row->getKey()));
+
+        $this->resolveGroup($batch, $group, $resolution, $actor, $target);
+
+        ImportBatchCounters::refresh($batch);
+    }
+
+    /**
+     * La misma decisión para varios médicos de la cola de revisión. Solo "crear como
+     * nueva" o "descartar": vincular exige elegir la ficha de cada uno (AGENTS.md §4,
+     * nunca se fusiona en automático). Las filas se agrupan una sola vez.
+     *
+     * Cuenta por médico (grupo de filas), que es lo que se decide: los decididos
+     * (resolved), los seleccionados que no estaban en revisión (ignored) y, por motivo,
+     * los que no se pudieron decidir (failed).
+     *
+     * @param  Collection<int, ImportRow>  $rows  filas seleccionadas de $batch
+     * @return array{resolved: int, ignored: int, failed: array<string, int>}
+     */
+    public function executeMany(ImportBatch $batch, Collection $rows, ImportResolution $resolution, User $actor): array
+    {
+        if ($resolution === ImportResolution::LinkExisting) {
+            throw new InvalidArgumentException('Vincular a una ficha existente se decide médico por médico.');
+        }
+
+        $selected = $rows->modelKeys();
+        $report = ['resolved' => 0, 'ignored' => 0, 'failed' => []];
+
+        $groups = RowGroup::from($batch->rows()->get())
+            ->filter(fn (RowGroup $g) => $g->rows->contains(fn (ImportRow $r) => in_array($r->getKey(), $selected, true)));
+
+        foreach ($groups as $group) {
+            if (! $group->rows->contains(fn (ImportRow $r) => $r->status === ImportRowStatus::NeedsReview)) {
+                $report['ignored']++;
+
+                continue;
+            }
+
+            try {
+                $this->resolveGroup($batch, $group, $resolution, $actor);
+                $report['resolved']++;
+            } catch (ImportFileException $e) {
+                $report['failed'][$e->getMessage()] = ($report['failed'][$e->getMessage()] ?? 0) + 1;
+            }
+        }
+
+        ImportBatchCounters::refresh($batch);
+
+        return $report;
+    }
+
+    /**
+     * @throws ImportFileException
+     */
+    private function resolveGroup(ImportBatch $batch, RowGroup $group, ImportResolution $resolution, User $actor, ?Doctor $target = null): void
+    {
         $first = $group->first();
 
         if ($resolution !== ImportResolution::Discard) {
@@ -70,7 +128,5 @@ class ResolveImportRowAction
                 ->withProperties(['doctor_ref' => $group->ref, 'resolution' => $resolution->value, 'doctor' => $target?->getKey()])
                 ->log('import.row_resolved');
         });
-
-        ImportBatchCounters::refresh($batch);
     }
 }

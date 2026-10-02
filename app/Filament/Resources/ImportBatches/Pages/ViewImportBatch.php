@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\ImportBatches\Pages;
 
 use App\Domain\Directory\Enums\DoctorStatus;
-use App\Domain\Import\Enums\ImportBatchStatus;
 use App\Domain\Import\Enums\ImportRowStatus;
 use App\Domain\Import\ImportPipeline;
 use App\Filament\Resources\ImportBatches\ImportBatchResource;
@@ -13,17 +12,23 @@ use App\Models\ImportBatch;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
+use Livewire\Attributes\On;
 
 /**
  * @property ImportBatch $record
+ *
+ * Las etapas corren en cola. Lanzar una avisa con `import-batch-changed` a los contadores
+ * y a la tabla de filas para que se refresquen mientras corre; al terminar, los
+ * contadores avisan con `import-batch-finished` y la cabecera muestra el siguiente paso
+ * sin recargar.
  */
 class ViewImportBatch extends ViewRecord
 {
     protected static string $resource = ImportBatchResource::class;
 
-    /** Estados en los que una etapa está corriendo: no se lanza otra encima. */
-    private const RUNNING = [ImportBatchStatus::Ingesting, ImportBatchStatus::Normalizing, ImportBatchStatus::Matching, ImportBatchStatus::Applying];
+    protected Width|string|null $maxContentWidth = Width::Full;
 
     public function getTitle(): string
     {
@@ -33,6 +38,12 @@ class ViewImportBatch extends ViewRecord
     protected function getHeaderWidgets(): array
     {
         return [ImportBatchStats::class];
+    }
+
+    #[On('import-batch-finished')]
+    public function refreshBatch(): void
+    {
+        $this->record->refresh();
     }
 
     protected function getHeaderActions(): array
@@ -47,8 +58,9 @@ class ViewImportBatch extends ViewRecord
                 ->visible(fn () => ! $this->isRunning())
                 ->authorize(fn () => auth()->user()?->can('resolve', $this->record) ?? false)
                 ->action(function () {
-                    app(ImportPipeline::class)->process($this->record);
-                    Notification::make()->success()->title('Reprocesando el lote')->send();
+                    app(ImportPipeline::class)->process($this->record, auth()->user());
+                    $this->dispatch('import-batch-changed');
+                    Notification::make()->success()->title('Reprocesando el lote')->body('Te avisaremos en la campana al terminar.')->send();
                 }),
 
             Action::make('apply')
@@ -61,7 +73,8 @@ class ViewImportBatch extends ViewRecord
                 ->authorize(fn () => auth()->user()?->can('apply', $this->record) ?? false)
                 ->action(function () {
                     app(ImportPipeline::class)->apply($this->record, auth()->user());
-                    Notification::make()->success()->title('Aplicando el lote')->body('Las fichas se crean en borrador. Nada se publica todavía.')->send();
+                    $this->dispatch('import-batch-changed');
+                    Notification::make()->success()->title('Aplicando el lote')->body('Las fichas se crean en borrador. Nada se publica todavía. Te avisaremos al terminar.')->send();
                 }),
 
             Action::make('publish')
@@ -75,14 +88,15 @@ class ViewImportBatch extends ViewRecord
                 ->authorize(fn () => auth()->user()?->can('doctors.publish') ?? false)
                 ->action(function () {
                     app(ImportPipeline::class)->publish($this->record, auth()->user());
-                    Notification::make()->success()->title('Publicando las fichas del lote')->body('El resultado aparecerá en las notas del lote.')->send();
+                    $this->dispatch('import-batch-changed');
+                    Notification::make()->success()->title('Publicando las fichas del lote')->body('Te avisaremos en la campana con el resultado.')->send();
                 }),
         ];
     }
 
     private function isRunning(): bool
     {
-        return in_array($this->record->refresh()->status, self::RUNNING, true);
+        return $this->record->refresh()->status->isRunning();
     }
 
     private function readyRows(): int

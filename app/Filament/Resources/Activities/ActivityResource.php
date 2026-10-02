@@ -3,17 +3,22 @@
 namespace App\Filament\Resources\Activities;
 
 use App\Filament\Resources\Activities\Pages\ManageActivities;
+use App\Filament\Support\ActivityPresenter;
 use App\Models\User;
 use BackedEnum;
 use Filament\Actions\ViewAction;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
 use Filament\Infolists\Components\KeyValueEntry;
+use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\PaginationMode;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -24,6 +29,9 @@ use UnitEnum;
 /**
  * Visor de la auditoría (DATABASE.md §14.4, MODELO-IDENTIDAD.md §10). Solo lectura:
  * es el único registro que permite deshacer a mano una fusión equivocada.
+ *
+ * Es la tabla que más crece: paginación simple (sin COUNT) y filtros con opciones
+ * fijas, nunca un DISTINCT sobre toda la tabla.
  */
 class ActivityResource extends Resource
 {
@@ -52,6 +60,8 @@ class ActivityResource extends Resource
         'App\Models\Specialty' => 'Especialidad',
         'App\Models\Region' => 'Región',
         'App\Models\City' => 'Ciudad',
+        'App\Models\Location' => 'Ubicación',
+        'App\Models\Language' => 'Idioma',
         'App\Models\ImportBatch' => 'Lote de importación',
         'App\Models\ImportRow' => 'Fila de importación',
     ];
@@ -59,6 +69,26 @@ class ActivityResource extends Resource
     public static function subjectLabel(?string $type): string
     {
         return $type ? (self::SUBJECTS[$type] ?? class_basename($type)) : '—';
+    }
+
+    /**
+     * Enlace a la pantalla del sujeto, si tiene una.
+     */
+    public static function subjectUrl(Activity $activity): ?string
+    {
+        if (blank($activity->subject_type) || blank($activity->subject_id)) {
+            return null;
+        }
+
+        $resource = Filament::getModelResource($activity->subject_type);
+
+        foreach (['view', 'edit'] as $page) {
+            if ($resource && $resource::hasPage($page)) {
+                return $resource::getUrl($page, ['record' => $activity->subject_id]);
+            }
+        }
+
+        return null;
     }
 
     public static function infolist(Schema $schema): Schema
@@ -69,26 +99,44 @@ class ActivityResource extends Resource
                     ->columns(3)
                     ->schema([
                         TextEntry::make('created_at')->label('Fecha')->dateTime(),
-                        TextEntry::make('event')->label('Evento')->badge()->color('gray'),
+                        TextEntry::make('event')->label('Evento')->badge()->color('gray')
+                            ->formatStateUsing(fn (?string $state) => ActivityPresenter::eventLabel($state)),
                         TextEntry::make('causer.name')->label('Autor')->placeholder('Sistema / consola'),
-                        TextEntry::make('subject_type')->label('Sujeto')->formatStateUsing(fn (?string $state) => self::subjectLabel($state)),
+                        TextEntry::make('subject_type')->label('Sujeto')
+                            ->formatStateUsing(fn (?string $state) => self::subjectLabel($state))
+                            ->url(fn (Activity $record) => self::subjectUrl($record)),
                         TextEntry::make('subject_id')->label('ID del sujeto')->copyable()->placeholder('—'),
-                        TextEntry::make('description')->label('Descripción'),
+                        TextEntry::make('summary')->label('Resumen')
+                            ->state(fn (Activity $record) => ActivityPresenter::summary($record))
+                            ->placeholder('—'),
+                    ]),
+                Section::make('Cambios')
+                    ->visible(fn (Activity $record) => ActivityPresenter::changes($record) !== [])
+                    ->schema([
+                        RepeatableEntry::make('changes')
+                            ->hiddenLabel()
+                            ->state(fn (Activity $record) => ActivityPresenter::changes($record))
+                            ->table([
+                                RepeatableEntry\TableColumn::make('Campo'),
+                                RepeatableEntry\TableColumn::make('Antes'),
+                                RepeatableEntry\TableColumn::make('Después'),
+                            ])
+                            ->schema([
+                                TextEntry::make('field'),
+                                TextEntry::make('old')->color('gray'),
+                                TextEntry::make('new'),
+                            ]),
                     ]),
                 Section::make('Datos registrados')
+                    ->collapsible()
+                    ->collapsed(fn (Activity $record) => ActivityPresenter::changes($record) !== [])
                     ->schema([
                         KeyValueEntry::make('properties')
-                            ->label('Propiedades')
+                            ->hiddenLabel()
                             ->keyLabel('Clave')
                             ->valueLabel('Valor')
                             ->state(fn (Activity $record) => self::flatten($record->properties?->all() ?? []))
                             ->placeholder('Sin propiedades'),
-                        KeyValueEntry::make('attribute_changes')
-                            ->label('Cambios de atributos')
-                            ->keyLabel('Clave')
-                            ->valueLabel('Valor')
-                            ->state(fn (Activity $record) => self::flatten($record->attribute_changes?->all() ?? []))
-                            ->placeholder('Sin cambios registrados'),
                     ]),
             ]);
     }
@@ -96,6 +144,7 @@ class ActivityResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->with('causer'))
             ->columns([
                 TextColumn::make('created_at')
                     ->label('Fecha')
@@ -105,10 +154,16 @@ class ActivityResource extends Resource
                     ->label('Evento')
                     ->badge()
                     ->color('gray')
-                    ->searchable(),
+                    ->formatStateUsing(fn (?string $state) => ActivityPresenter::eventLabel($state)),
+                TextColumn::make('summary')
+                    ->label('Resumen')
+                    ->state(fn (Activity $record) => ActivityPresenter::summary($record))
+                    ->limit(80)
+                    ->placeholder('—'),
                 TextColumn::make('subject_type')
                     ->label('Sujeto')
-                    ->formatStateUsing(fn (?string $state) => self::subjectLabel($state)),
+                    ->formatStateUsing(fn (?string $state) => self::subjectLabel($state))
+                    ->url(fn (Activity $record) => self::subjectUrl($record)),
                 TextColumn::make('subject_id')
                     ->label('ID del sujeto')
                     ->searchable()
@@ -119,18 +174,32 @@ class ActivityResource extends Resource
                     ->placeholder('Sistema / consola'),
             ])
             ->defaultSort('created_at', 'desc')
+            ->paginationMode(PaginationMode::Simple)
+            ->persistFiltersInSession()
             ->filters([
                 SelectFilter::make('event')
                     ->label('Evento')
-                    ->options(fn () => Activity::query()->distinct()->orderBy('event')->pluck('event', 'event')->filter()->all()),
+                    ->options(ActivityPresenter::EVENTS)
+                    ->searchable(),
                 SelectFilter::make('subject_type')
                     ->label('Tipo de sujeto')
-                    ->options(fn () => Activity::query()->distinct()->whereNotNull('subject_type')->pluck('subject_type')
-                        ->mapWithKeys(fn (string $type) => [$type => self::subjectLabel($type)])->all()),
-                SelectFilter::make('causer_id')
+                    ->options(self::SUBJECTS),
+                Filter::make('causer')
                     ->label('Autor')
-                    ->options(fn () => User::whereIn('id', Activity::query()->select('causer_id')->whereNotNull('causer_id'))
-                        ->orderBy('name')->pluck('name', 'id')->all()),
+                    ->schema([
+                        Select::make('causer_id')
+                            ->label('Autor')
+                            ->searchable()
+                            ->getSearchResultsUsing(fn (string $search) => User::query()
+                                ->where(fn ($q) => $q->where('name', 'ilike', "%{$search}%")->orWhere('email', 'ilike', "%{$search}%"))
+                                ->orderBy('name')->limit(20)->pluck('name', 'id')->all())
+                            ->getOptionLabelUsing(fn ($value) => User::find($value)?->name),
+                    ])
+                    ->query(fn (Builder $query, array $data) => $query->when($data['causer_id'] ?? null,
+                        fn (Builder $q, string $id) => $q->where('causer_type', User::class)->where('causer_id', $id)))
+                    ->indicateUsing(fn (array $data) => filled($data['causer_id'] ?? null)
+                        ? 'Autor: '.User::find($data['causer_id'])?->name
+                        : null),
                 Filter::make('created_at')
                     ->label('Fecha')
                     ->schema([
@@ -142,7 +211,7 @@ class ActivityResource extends Resource
                         ->when($data['until'] ?? null, fn ($q, $date) => $q->whereDate('created_at', '<=', $date))),
             ])
             ->recordActions([
-                ViewAction::make(),
+                ViewAction::make()->slideOver(),
             ]);
     }
 

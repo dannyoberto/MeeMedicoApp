@@ -1258,6 +1258,7 @@ Registrados además desde el backoffice (Etapas 1–3):
 - `location.updated`, `catalog.activated` y `catalog.deactivated`.
 - `suppression.revoked` (con el motivo en `properties`).
 - Los cambios del agregado (especialidades, ubicaciones, contactos, idiomas) se registran como `doctor.updated`, con `part` y `op` en `properties`.
+- La edición de datos y perfil (`UpdateDoctorAction`) registra `doctor.updated` con los nombres de los campos en `properties.fields` y, en `attribute_changes`, su valor anterior y el nuevo (formato de spatie: `old` / `attributes`; los campos del perfil con prefijo `profile.`). Es lo que permite deshacer a mano una edición equivocada y lo que muestra la pestaña Historial de la ficha.
 
 El historial es lo único de este documento que no se puede añadir después. Media jornada de trabajo ahora, irrecuperable más tarde.
 
@@ -1292,6 +1293,7 @@ El historial es lo único de este documento que no se puede añadir después. Me
 023  doctor_contact_events
 024  activity_log                  (spatie)
 025  doctor_suppressions: columnas de revocación (§14.1)
+026  notifications                 (infraestructura de Laravel, §17)
 ```
 
 La 000 es imprescindible antes que todo: `doctors.search_vector` referencia `es_unaccent`, y todos los PK usan el dominio `ulid`.
@@ -1366,9 +1368,12 @@ No están contadas entre las 27, pero existen y forman parte del esquema:
 migrations              password_reset_tokens      sessions
 jobs                    job_batches                failed_jobs
 cache                   cache_locks                personal_access_tokens
+notifications
 ```
 
 `password_reset_tokens` es requisito del "recuperar contraseña" ya incluido en el alcance. `personal_access_tokens` (Sanctum) no se usa en Fase 1 pero es la base de la API que consumirá la app React Native en V2.
+
+`notifications` alimenta la campana del backoffice: avisa a quien lanzó un proceso en cola (buscar coincidencias, aplicar o publicar un lote; publicar en lote más de 100 fichas) cuando termina o falla. La migración propia ajusta el stub de Laravel a §3: `notifiable_id` en `varchar(26)` para ULID, `data` en `jsonb` (Filament filtra por `data->format`) y `timestamptz`. El `id` sigue en `uuid` porque lo genera el canal de Laravel. Sin FK: `notifiable` es polimórfico. Son avisos efímeros: si crecen, se purgan las leídas antiguas; no es un registro de auditoría (eso es `activity_log`).
 
 ---
 

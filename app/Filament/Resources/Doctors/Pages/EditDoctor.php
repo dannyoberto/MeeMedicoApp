@@ -26,13 +26,6 @@ class EditDoctor extends EditRecord
         return DoctorResource::displayName($this->record);
     }
 
-    public function getSubheading(): ?string
-    {
-        $country = $this->record->country?->slug;
-
-        return "/{$country}/medicos/{$this->record->slug} · {$this->record->status->getLabel()} · {$this->record->verification_status->getLabel()}";
-    }
-
     protected function getHeaderActions(): array
     {
         return [

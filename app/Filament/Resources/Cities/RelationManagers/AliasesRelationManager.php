@@ -64,7 +64,8 @@ class AliasesRelationManager extends RelationManager
                     ->searchable(),
                 TextColumn::make('alias_normalized')
                     ->label('Clave normalizada')
-                    ->color('gray'),
+                    ->color('gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('source')
                     ->label('Origen')
                     ->badge()

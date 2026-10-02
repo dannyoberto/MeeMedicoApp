@@ -31,6 +31,8 @@ class LanguageResource extends Resource
 
     protected static ?string $pluralModelLabel = 'idiomas';
 
+    protected static bool $isGloballySearchable = false;
+
     protected static ?string $recordTitleAttribute = 'name';
 
     public static function form(Schema $schema): Schema

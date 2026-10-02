@@ -3,7 +3,9 @@
 namespace App\Filament\Resources\Regions\Tables;
 
 use App\Domain\Geo\Enums\RegionStatus;
+use App\Filament\Actions\ChangeSlugAction;
 use App\Filament\Actions\ToggleStatusAction;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -24,7 +26,9 @@ class RegionsTable
                     ->sortable(),
                 TextColumn::make('slug')
                     ->label('Slug')
-                    ->searchable(),
+                    ->color('gray')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('cities_count')
                     ->label('Ciudades')
                     ->counts('cities')
@@ -47,9 +51,13 @@ class RegionsTable
                     ->label('Estado')
                     ->options(RegionStatus::class),
             ])
+            // Todo en modal: editar (país y slug bloqueados), cambiar slug con su 301 y dar de baja.
             ->recordActions([
                 EditAction::make(),
-                ToggleStatusAction::make(),
+                ActionGroup::make([
+                    ChangeSlugAction::make(),
+                    ToggleStatusAction::make(),
+                ]),
             ]);
     }
 }

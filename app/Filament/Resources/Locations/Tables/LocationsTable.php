@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Locations\Tables;
 
 use App\Domain\Directory\Enums\LocationStatus;
 use App\Domain\Directory\Enums\LocationType;
+use App\Domain\Directory\Support\LocationSearch;
 use App\Filament\Actions\ToggleStatusAction;
 use App\Models\Location;
 use Filament\Actions\EditAction;
@@ -25,11 +26,14 @@ class LocationsTable
             ->modifyQueryUsing(fn (Builder $query) => $query
                 ->with(['city:id,name', 'country:id,name'])
                 ->withCount(['doctors', ...self::typeCounts()]))
+            ->splitSearchTerms(false)
+            ->persistFiltersInSession()
+            ->persistSearchInSession()
             ->columns([
                 TextColumn::make('address')
                     ->label('Dirección')
                     ->description(fn (Location $record) => $record->name)
-                    ->searchable(['address', 'name']),
+                    ->searchable(query: fn (Builder $query, string $search) => LocationSearch::apply($query, $search)),
                 TextColumn::make('city.name')->label('Ciudad')->sortable(),
                 TextColumn::make('country.name')->label('País'),
                 TextColumn::make('types')

@@ -53,7 +53,7 @@ describe('tipos y convenciones', function () {
     });
 
     it('existen las 27 tablas propias más activity_log', function () {
-        $infra = ['migrations', 'password_reset_tokens', 'sessions', 'jobs', 'job_batches', 'failed_jobs', 'cache', 'cache_locks', 'personal_access_tokens'];
+        $infra = ['migrations', 'password_reset_tokens', 'sessions', 'jobs', 'job_batches', 'failed_jobs', 'cache', 'cache_locks', 'personal_access_tokens', 'notifications'];
         $own = collect(DB::select("select table_name from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE'"))
             ->pluck('table_name')->diff($infra);
 

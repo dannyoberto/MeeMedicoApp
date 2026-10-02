@@ -14,11 +14,14 @@ use Illuminate\Support\Facades\Bus;
  */
 class ImportPipeline
 {
-    public function process(ImportBatch $batch): void
+    /**
+     * @param  User|null  $actor  quien lo lanzó: recibe el aviso al terminar (si no, el creador del lote)
+     */
+    public function process(ImportBatch $batch, ?User $actor = null): void
     {
         Bus::chain([
-            new RunImportStage($batch->getKey(), RunImportStage::NORMALIZE),
-            new RunImportStage($batch->getKey(), RunImportStage::MATCH),
+            new RunImportStage($batch->getKey(), RunImportStage::NORMALIZE, $actor?->getKey()),
+            new RunImportStage($batch->getKey(), RunImportStage::MATCH, $actor?->getKey()),
         ])->dispatch();
     }
 

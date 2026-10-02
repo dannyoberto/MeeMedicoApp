@@ -21,7 +21,9 @@ class SpecialtiesTable
                     ->sortable(),
                 TextColumn::make('slug')
                     ->label('Slug')
-                    ->searchable(),
+                    ->color('gray')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('aliases_count')
                     ->label('Alias')
                     ->counts('aliases')

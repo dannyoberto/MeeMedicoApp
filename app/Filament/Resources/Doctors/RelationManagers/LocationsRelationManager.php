@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Doctors\RelationManagers;
 use App\Domain\Directory\Actions\DoctorLocationsAction;
 use App\Domain\Directory\Enums\LocationStatus;
 use App\Domain\Directory\Enums\LocationType;
+use App\Domain\Directory\Support\LocationSearch;
 use App\Filament\Resources\Doctors\RelationManagers\Concerns\ChangesDoctorAggregate;
 use App\Filament\Resources\Locations\LocationResource;
 use App\Filament\Resources\Locations\Schemas\LocationForm;
@@ -76,14 +77,15 @@ class LocationsRelationManager extends RelationManager
                     ->schema([
                         Select::make('location_id')
                             ->label('Ubicación')
-                            ->helperText('Busca por nombre del lugar o dirección. Primero salen las del país del médico.')
-                            ->getSearchResultsUsing(fn (string $search) => Location::where('status', LocationStatus::Active)
+                            ->helperText('Busca por nombre del lugar o dirección, sin importar acentos. Primero salen las del país del médico.')
+                            ->getSearchResultsUsing(fn (string $search) => self::locationOptions(LocationSearch::apply(Location::query(), $search)
+                                ->where('status', LocationStatus::Active)
                                 ->whereNotIn('id', $this->doctor()->locations()->pluck('locations.id'))
-                                ->where(fn ($q) => $q->where('address', 'ilike', "%{$search}%")->orWhere('name', 'ilike', "%{$search}%"))
                                 ->orderByRaw('country_id = ? desc', [$this->doctor()->country_id])
                                 ->orderBy('name')->orderBy('address')
-                                ->with(['city:id,name', 'country:id,name'])->limit(20)->get()
-                                ->mapWithKeys(fn (Location $l) => [$l->id => trim("{$l->name} · {$l->address} ({$l->city->name}, {$l->country->name})", ' ·')]))
+                                ->limit(20)))
+                            // Sin esto, el select mostraría el identificador tras un error de validación.
+                            ->getOptionLabelUsing(fn ($value) => self::locationOptions(Location::whereKey($value))[$value] ?? null)
                             ->searchable()
                             ->required(),
                         ...self::linkFields(),
@@ -133,6 +135,17 @@ class LocationsRelationManager extends RelationManager
             ])
             ->emptyStateHeading('Sin ubicaciones')
             ->emptyStateDescription('Hace falta al menos una, con ciudad, para publicar.');
+    }
+
+    /**
+     * @param  Builder<Location>  $query
+     * @return array<string, string>
+     */
+    private static function locationOptions(Builder $query): array
+    {
+        return $query->with(['city:id,name', 'country:id,name'])->get()
+            ->mapWithKeys(fn (Location $l) => [$l->id => trim("{$l->name} · {$l->address} ({$l->city->name}, {$l->country->name})", ' ·')])
+            ->all();
     }
 
     /**

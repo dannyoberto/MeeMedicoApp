@@ -9,6 +9,8 @@ use App\Domain\Directory\Support\NameNormalizer;
 use App\Domain\Directory\Support\SuppressionCheck;
 use App\Models\Doctor;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -74,11 +76,15 @@ class UpdateDoctorAction
             }
 
             $changes = collect($doctor->getDirty())->except('updated_at')->keys()->all();
+            // Antes y después de cada campo, para que la auditoría permita deshacer a mano.
+            // name_normalized se deriva del nombre: no aporta nada a quien lee el historial.
+            $values = self::values($doctor, except: ['updated_at', 'name_normalized']);
             $doctor->save();
 
             $doctorProfile = $doctor->profile()->firstOrCreate();
             $doctorProfile->fill($profile);
             $changes = [...$changes, ...array_map(fn ($k) => "profile.{$k}", array_keys($doctorProfile->getDirty()))];
+            $profileValues = self::values($doctorProfile, except: ['updated_at'], prefix: 'profile.');
             $doctorProfile->save();
 
             if ($changes !== []) {
@@ -87,10 +93,32 @@ class UpdateDoctorAction
                     ->causedBy($actor)
                     ->event('doctor.updated')
                     ->withProperties(['fields' => $changes, 'verification_revoked' => $licenseChanged && in_array('verification_status', $changes, true)])
+                    ->withChanges([
+                        'old' => [...$values['old'], ...$profileValues['old']],
+                        'attributes' => [...$values['new'], ...$profileValues['new']],
+                    ])
                     ->log('doctor.updated');
             }
 
             return $doctor;
         }));
+    }
+
+    /**
+     * Valores en bruto (como se guardan) de los campos modificados, antes y después.
+     *
+     * @param  array<int, string>  $except
+     * @return array{old: array<string, mixed>, new: array<string, mixed>}
+     */
+    private static function values(Model $model, array $except, string $prefix = ''): array
+    {
+        $values = ['old' => [], 'new' => []];
+
+        foreach (Arr::except($model->getDirty(), $except) as $key => $value) {
+            $values['old'][$prefix.$key] = $model->getRawOriginal($key);
+            $values['new'][$prefix.$key] = $value;
+        }
+
+        return $values;
     }
 }

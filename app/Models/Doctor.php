@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Spatie\Activitylog\Models\Activity;
 
 /**
  * Ficha del directorio (DATABASE.md §9.1). Existe sin User.
@@ -147,5 +149,14 @@ class Doctor extends Model
     public function contactEvents(): HasMany
     {
         return $this->hasMany(DoctorContactEvent::class);
+    }
+
+    /**
+     * Su historial en activity_log: las Actions registran cada cambio del agregado
+     * (especialidades, ubicaciones, contactos…) con la ficha como sujeto.
+     */
+    public function activities(): MorphMany
+    {
+        return $this->morphMany(Activity::class, 'subject');
     }
 }

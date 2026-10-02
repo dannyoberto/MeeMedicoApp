@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Domain\Directory\Enums\VerificationStatus;
+use App\Domain\Directory\Support\DoctorSearch;
 use App\Filament\Resources\Doctors\DoctorResource;
 use App\Filament\Support\InitialsAvatarProvider;
 use App\Models\Doctor;
@@ -11,6 +12,7 @@ use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Cola de verificación. "Revisar" abre la ficha, donde vive la acción Verificar.
@@ -34,7 +36,14 @@ class PendingVerificationsTable extends TableWidget
                 ->where('verification_status', VerificationStatus::Pending)
                 ->with(['country:id,name', 'specialties' => fn ($q) => $q->wherePivot('is_primary', true)]))
             ->defaultSort('updated_at')
+            ->splitSearchTerms(false)
             ->paginated([5])
+            ->headerActions([
+                Action::make('viewAll')
+                    ->label('Ver todas')
+                    ->link()
+                    ->url(DoctorResource::getUrl('index', ['tab' => 'verification'])),
+            ])
             ->columns([
                 ImageColumn::make('avatar')
                     ->label('')
@@ -45,7 +54,7 @@ class PendingVerificationsTable extends TableWidget
                     ->label('Médico')
                     ->formatStateUsing(fn (Doctor $record) => $record->professional_name ?: "{$record->first_name} {$record->last_name}")
                     ->description(fn (Doctor $record) => $record->license_number ? "Lic. {$record->license_number}" : 'Sin licencia registrada')
-                    ->searchable(['first_name', 'last_name', 'license_number']),
+                    ->searchable(query: fn (Builder $query, string $search) => DoctorSearch::apply($query, $search)),
                 TextColumn::make('specialties.name')
                     ->label('Especialidad')
                     ->placeholder('—'),

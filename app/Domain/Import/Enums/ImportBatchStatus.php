@@ -59,4 +59,12 @@ enum ImportBatchStatus: string implements HasColor, HasIcon, HasLabel
             self::Failed => Heroicon::OutlinedXCircle,
         };
     }
+
+    /**
+     * Una etapa corre en cola: no se lanza otra encima y la pantalla se refresca sola.
+     */
+    public function isRunning(): bool
+    {
+        return in_array($this, [self::Ingesting, self::Normalizing, self::Matching, self::Applying], true);
+    }
 }

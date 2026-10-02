@@ -56,6 +56,15 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Plataforma'),
             ])
             ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, fn () => view('filament.admin.user-summary'))
+            // Campana: avisos de procesos en cola (lotes, publicación en lote). Tabla notifications.
+            ->databaseNotifications()
+            // Navegación sin recargar la página; avisa antes de perder un formulario sin guardar.
+            ->spa()
+            ->unsavedChangesAlerts()
+            // Más ancho para las tablas grandes cuando hace falta.
+            ->sidebarCollapsibleOnDesktop()
+            // La búsqueda global solo cubre Médicos y Usuarios; los catálogos tienen su tabla.
+            ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([

@@ -43,8 +43,8 @@ class CreateImportBatch extends CreateRecord
             $disk->delete($upload);
         }
 
-        // Normalizar y buscar coincidencias corren solas, en cola.
-        app(ImportPipeline::class)->process($batch);
+        // Normalizar y buscar coincidencias corren solas, en cola; avisan al terminar.
+        app(ImportPipeline::class)->process($batch, auth()->user());
 
         return $batch;
     }

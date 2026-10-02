@@ -52,7 +52,7 @@ class ContactsRelationManager extends RelationManager
                 TextColumn::make('value')->label('Valor')
                     ->description(fn (DoctorContact $record) => $record->label)
                     ->copyable(),
-                TextColumn::make('value_normalized')->label('Normalizado')->color('gray')->toggleable(),
+                TextColumn::make('value_normalized')->label('Normalizado')->color('gray')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('location.address')->label('Ubicación')->placeholder('General'),
                 IconColumn::make('is_public')->label('Público')->boolean(),
                 IconColumn::make('is_primary')->label('Principal')->boolean()

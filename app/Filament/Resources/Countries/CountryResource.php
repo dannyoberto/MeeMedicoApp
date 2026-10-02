@@ -36,6 +36,8 @@ class CountryResource extends Resource
 
     protected static ?string $pluralModelLabel = 'países';
 
+    protected static bool $isGloballySearchable = false;
+
     protected static ?string $recordTitleAttribute = 'name';
 
     public static function form(Schema $schema): Schema

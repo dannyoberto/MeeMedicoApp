@@ -7,6 +7,7 @@ use App\Filament\Resources\ImportBatches\Pages\ViewImportBatch;
 use App\Filament\Resources\ImportBatches\RelationManagers\RowsRelationManager;
 use App\Models\Doctor;
 use App\Models\ImportBatch;
+use App\Models\ImportRow;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -106,4 +107,61 @@ it('descartar desde la cola de revisión', function () {
         ->mountTableAction('discard', $row->id)->callMountedTableAction();
 
     expect($row->fresh()->status->value)->toBe('skipped');
+});
+
+/**
+ * Dos médicos en revisión por ciudad desconocida: descartarlos es la decisión posible.
+ *
+ * @return array{0: ImportBatch, 1: ImportRow, 2: ImportRow}
+ */
+function twoRowsInReview(): array
+{
+    Livewire::test(CreateImportBatch::class)
+        ->set('data.country_id', country()->id)->set('data.source', 'x')
+        ->set('data.file', templateUpload([
+            ['doctor_ref' => 'MED-1', 'first_name' => 'Ana', 'last_name' => 'Rojas', 'specialty_1' => 'Cardiología', 'address' => 'A', 'city' => 'Ninguna'],
+            ['doctor_ref' => 'MED-2', 'first_name' => 'Luis', 'last_name' => 'Soto', 'specialty_1' => 'Cardiología', 'address' => 'B', 'city' => 'Otra'],
+        ]))
+        ->call('create');
+
+    $batch = ImportBatch::firstOrFail();
+    [$first, $second] = $batch->rows()->orderBy('row_number')->get()->all();
+
+    return [$batch, $first, $second];
+}
+
+it('al subir un lote, quien lo sube recibe el aviso cuando está listo para revisar', function () {
+    twoRowsInReview();
+
+    expect($this->admin->notifications()->firstOrFail()->data['title'])->toBe('Lote listo para revisar');
+});
+
+it('revisar en el panel lateral: al decidir pasa sola a la siguiente fila y se cierra con la última', function () {
+    [$batch, $first, $second] = twoRowsInReview();
+
+    $rows = Livewire::test(RowsRelationManager::class, ['ownerRecord' => $batch, 'pageClass' => ViewImportBatch::class])
+        ->mountTableAction('details', $first->id)
+        ->assertSeeText('Ciudad no reconocida')
+        ->call('mountAction', 'discard')
+        ->callMountedAction();
+
+    expect($first->fresh()->status->value)->toBe('skipped')
+        ->and($rows->instance()->mountedActions)->toHaveCount(1)
+        ->and($rows->instance()->mountedActions[0]['context']['recordKey'])->toBe($second->id);
+
+    $rows->call('mountAction', 'discard')->callMountedAction();
+
+    expect($second->fresh()->status->value)->toBe('skipped')
+        ->and($rows->instance()->mountedActions)->toBeEmpty();
+});
+
+it('descartar en lote desde la cola de revisión', function () {
+    [$batch, $first, $second] = twoRowsInReview();
+
+    Livewire::test(RowsRelationManager::class, ['ownerRecord' => $batch, 'pageClass' => ViewImportBatch::class])
+        ->callTableBulkAction('discardSelected', [$first, $second]);
+
+    expect($first->fresh()->status->value)->toBe('skipped')
+        ->and($second->fresh()->status->value)->toBe('skipped')
+        ->and($batch->fresh()->rows_review)->toBe(0);
 });

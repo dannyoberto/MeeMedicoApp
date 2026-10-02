@@ -7,6 +7,16 @@
 @endphp
 
 <div class="flex flex-col gap-y-6 text-sm">
+    @if ($running ?? false)
+        <p class="rounded-lg border border-info-200 bg-info-50 px-3 py-2 text-info-800 dark:border-info-400/30 dark:bg-info-400/10 dark:text-info-200">
+            El lote se está reprocesando: esta fila puede cambiar en unos segundos.
+        </p>
+    @endif
+
+    @if (isset($pending) && $row->status === \App\Domain\Import\Enums\ImportRowStatus::NeedsReview)
+        <p class="text-gray-500 dark:text-gray-400">{{ $pending }} {{ $pending === 1 ? 'fila' : 'filas' }} en revisión en este lote.</p>
+    @endif
+
     @if ($row->validation_errors)
         <section>
             <h3 class="mb-2 font-semibold text-gray-900 dark:text-white">Incidencias</h3>

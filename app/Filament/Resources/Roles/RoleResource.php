@@ -35,6 +35,8 @@ class RoleResource extends Resource
 
     protected static ?string $pluralModelLabel = 'roles';
 
+    protected static bool $isGloballySearchable = false;
+
     protected static ?string $recordTitleAttribute = 'name';
 
     /**

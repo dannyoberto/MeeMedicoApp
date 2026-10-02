@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Specialties;
 
-use App\Filament\Resources\Specialties\Pages\CreateSpecialty;
 use App\Filament\Resources\Specialties\Pages\EditSpecialty;
 use App\Filament\Resources\Specialties\Pages\ListSpecialties;
 use App\Filament\Resources\Specialties\RelationManagers\AliasesRelationManager;
@@ -30,6 +29,8 @@ class SpecialtyResource extends Resource
 
     protected static ?string $pluralModelLabel = 'especialidades';
 
+    protected static bool $isGloballySearchable = false;
+
     protected static ?string $recordTitleAttribute = 'name';
 
     public static function form(Schema $schema): Schema
@@ -53,7 +54,6 @@ class SpecialtyResource extends Resource
     {
         return [
             'index' => ListSpecialties::route('/'),
-            'create' => CreateSpecialty::route('/create'),
             'edit' => EditSpecialty::route('/{record}/edit'),
         ];
     }

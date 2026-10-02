@@ -6,17 +6,22 @@ use App\Domain\Directory\Enums\DoctorGender;
 use App\Domain\Directory\Enums\LicenseSource;
 use App\Domain\Directory\Support\NameNormalizer;
 use App\Domain\Directory\Support\SuppressionCheck;
+use App\Filament\Resources\ImportBatches\ImportBatchResource;
+use App\Models\Doctor;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\TextSize;
 
 /**
  * Crear: datos mínimos (CreateDoctorAction); el agregado se completa al editar.
@@ -46,12 +51,45 @@ class DoctorForm
                                 Textarea::make('experience')->label('Experiencia')->rows(4),
                             ]),
                     ]),
-                Section::make('Requisitos para publicar')
+                Group::make([
+                    self::statusSection(),
+                    Section::make('Requisitos para publicar')
+                        ->schema([
+                            View::make('filament.admin.doctors.publication-checklist'),
+                        ]),
+                ])
                     ->visibleOn('edit')
-                    ->columnSpan(['lg' => 1])
-                    ->schema([
-                        View::make('filament.admin.doctors.publication-checklist'),
-                    ]),
+                    ->columnSpan(['lg' => 1]),
+            ]);
+    }
+
+    /**
+     * Estado de la ficha de un vistazo. Se cambia con las acciones de la cabecera.
+     */
+    private static function statusSection(): Section
+    {
+        return Section::make('Estado')
+            ->schema([
+                TextEntry::make('status')->label('Publicación')->badge()->inlineLabel(),
+                TextEntry::make('verification_status')->label('Verificación')->badge()->inlineLabel(),
+                TextEntry::make('claim_status')->label('Reclamación')->badge()->inlineLabel(),
+                TextEntry::make('public_path')
+                    ->label('Ruta pública')
+                    ->state(fn (Doctor $record) => "/{$record->country?->slug}/medicos/{$record->slug}")
+                    ->copyable()
+                    ->color('gray')
+                    ->size(TextSize::Small),
+                TextEntry::make('origin')
+                    ->label('Origen')
+                    ->state(fn (Doctor $record) => $record->importBatch
+                        ? "Lote {$record->importBatch->file_name}"
+                        : $record->source?->getLabel())
+                    ->url(fn (Doctor $record) => $record->import_batch_id
+                        ? ImportBatchResource::getUrl('view', ['record' => $record->import_batch_id])
+                        : null)
+                    ->inlineLabel(),
+                TextEntry::make('published_at')->label('Publicada')->dateTime()->placeholder('Nunca')->inlineLabel(),
+                TextEntry::make('updated_at')->label('Actualizada')->since()->inlineLabel(),
             ]);
     }
 
@@ -67,7 +105,8 @@ class DoctorForm
                 ->required()
                 ->live()
                 // El país fija la URL /{pais}/medicos/{slug} y el ámbito de la licencia.
-                ->disabled(fn (string $operation) => $operation !== 'create'),
+                ->disabled(fn (string $operation) => $operation !== 'create')
+                ->helperText(fn (string $operation) => $operation === 'create' ? null : 'Fija la URL de la ficha y el ámbito del colegiado: no se cambia.'),
             Grid::make(2)->schema([
                 TextInput::make('first_name')->label('Nombres')->required()->maxLength(100)->live(onBlur: true),
                 TextInput::make('last_name')->label('Apellidos')->required()->maxLength(150)->live(onBlur: true),

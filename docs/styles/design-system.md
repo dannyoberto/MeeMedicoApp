@@ -414,6 +414,24 @@ return $panel
 | Mapas | — | Fuera de alcance por ahora. |
 | Botones sociales | — | Solo login social si se decide; Twitter y Google+ se descartan. |
 
+### 12.4 Página, panel lateral o modal
+
+El backoffice gestionará decenas de miles de fichas. El formato de cada pantalla decide cuántos clics y cambios de contexto cuesta cada tarea.
+
+| Formato | Cuándo | Ejemplos |
+|---|---|---|
+| **Página** | Raíz de un agregado con sublistas, necesita una URL para compartir, formulario largo, o perder lo escrito sale caro | Médico, lote de importación, supresión, edición de ciudad y especialidad (por sus alias), ubicación |
+| **Panel lateral** (`slideOver()`) | Revisar y decidir sin perder la lista de vista, registro tras registro | Revisión de filas de un lote (al decidir pasa a la siguiente), detalle de auditoría |
+| **Modal** | Un verbo sobre un registro, o un formulario corto (hasta 6–8 campos) sin sublistas | Publicar, suspender, cambiar slug, añadir contacto; alta de ciudad y especialidad; regiones, países, idiomas, edición de usuario |
+
+Reglas que lo acompañan:
+
+- **Lo irreversible nunca va en un modal.** La futura fusión de médicos tendrá página propia con comparación campo a campo.
+- **Las colas de trabajo son pestañas con contador** (`getTabs()` con `deferBadge()`), no filtros que el operador tenga que recordar.
+- **Toda lista grande** tiene búsqueda sin acentos (`DoctorSearch`, `LocationSearch`), filtros que se recuerdan en la sesión y acciones en lote cuando la operación lo admite. En lote solo va lo que es seguro decidir en bloque: publicar, despublicar, crear como nuevas, descartar. Vincular, verificar o fusionar se decide de uno en uno.
+- **Los procesos en cola avisan al terminar** en la campana (notificaciones en base de datos), además de refrescar la pantalla si sigue abierta.
+- **Selects sobre catálogos grandes** (ciudades, médicos, ubicaciones) buscan en el servidor con `getSearchResultsUsing()` y definen `getOptionLabelUsing()`.
+
 ---
 
 ## 13. Logo e iconografía

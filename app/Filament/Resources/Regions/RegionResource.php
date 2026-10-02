@@ -2,9 +2,7 @@
 
 namespace App\Filament\Resources\Regions;
 
-use App\Filament\Resources\Regions\Pages\CreateRegion;
-use App\Filament\Resources\Regions\Pages\EditRegion;
-use App\Filament\Resources\Regions\Pages\ListRegions;
+use App\Filament\Resources\Regions\Pages\ManageRegions;
 use App\Filament\Resources\Regions\Schemas\RegionForm;
 use App\Filament\Resources\Regions\Tables\RegionsTable;
 use App\Models\Region;
@@ -29,6 +27,8 @@ class RegionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'regiones';
 
+    protected static bool $isGloballySearchable = false;
+
     protected static ?string $recordTitleAttribute = 'name';
 
     public static function form(Schema $schema): Schema
@@ -44,9 +44,7 @@ class RegionResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListRegions::route('/'),
-            'create' => CreateRegion::route('/create'),
-            'edit' => EditRegion::route('/{record}/edit'),
+            'index' => ManageRegions::route('/'),
         ];
     }
 }

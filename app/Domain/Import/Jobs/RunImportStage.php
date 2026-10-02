@@ -7,6 +7,8 @@ use App\Domain\Import\Actions\MatchImportBatchAction;
 use App\Domain\Import\Actions\NormalizeImportBatchAction;
 use App\Domain\Import\Actions\PublishImportBatchAction;
 use App\Domain\Import\Enums\ImportBatchStatus;
+use App\Domain\Import\Events\ImportStageFailed;
+use App\Domain\Import\Events\ImportStageFinished;
 use App\Models\ImportBatch;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
@@ -47,13 +49,18 @@ class RunImportStage implements ShouldQueue
         $batch = ImportBatch::findOrFail($this->batchId);
         $actor = $this->actorId ? User::find($this->actorId) : null;
 
-        match ($this->stage) {
+        $result = match ($this->stage) {
             self::NORMALIZE => app(NormalizeImportBatchAction::class)->execute($batch),
             self::MATCH => app(MatchImportBatchAction::class)->execute($batch),
             self::APPLY => app(ApplyImportBatchAction::class)->execute($batch, $actor),
             self::PUBLISH => app(PublishImportBatchAction::class)->execute($batch, $actor),
             default => throw new InvalidArgumentException("Etapa desconocida: {$this->stage}"),
         };
+
+        // Normalizar va siempre encadenada con buscar coincidencias: se avisa al final de la cadena.
+        if ($this->stage !== self::NORMALIZE) {
+            ImportStageFinished::dispatch($this->batchId, $this->stage, $this->actorId, is_array($result) ? $result : null);
+        }
     }
 
     public function failed(Throwable $e): void
@@ -64,5 +71,7 @@ class RunImportStage implements ShouldQueue
             'status' => ImportBatchStatus::Failed,
             'notes' => trim(($batch->notes ? $batch->notes."\n\n" : '')."Falló la etapa {$this->stage}: {$e->getMessage()}"),
         ]);
+
+        ImportStageFailed::dispatch($this->batchId, $this->stage, $this->actorId, $e->getMessage());
     }
 }

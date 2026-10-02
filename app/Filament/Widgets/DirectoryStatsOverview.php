@@ -6,6 +6,7 @@ use App\Domain\Claim\Enums\DoctorClaimStatus;
 use App\Domain\Directory\Enums\ClaimStatus;
 use App\Domain\Directory\Enums\DoctorStatus;
 use App\Domain\Directory\Enums\VerificationStatus;
+use App\Filament\Resources\Doctors\DoctorResource;
 use App\Models\Doctor;
 use App\Models\DoctorClaim;
 use Filament\Widgets\StatsOverviewWidget;
@@ -44,16 +45,20 @@ class DirectoryStatsOverview extends StatsOverviewWidget
             ->where('submitted_at', '<', now()->subHours(48))
             ->count();
 
+        // Cada indicador lleva a la lista que lo explica. Las reclamaciones aún no tienen pantalla.
         return [
             Stat::make('Médicos publicados', self::number($published))
-                ->description('+'.self::number($publishedThisMonth).' este mes'),
+                ->description('+'.self::number($publishedThisMonth).' este mes')
+                ->url(DoctorResource::getUrl('index', ['tab' => 'all', 'filters' => ['status' => ['value' => DoctorStatus::Active->value]]])),
 
             Stat::make('Perfiles reclamados', "{$claimedRatio} %")
-                ->description(self::number($claimed).' de '.self::number($published).' fichas publicadas'),
+                ->description(self::number($claimed).' de '.self::number($published).' fichas publicadas')
+                ->url(DoctorResource::getUrl('index', ['tab' => 'all', 'filters' => ['claim_status' => ['value' => ClaimStatus::Claimed->value]]])),
 
             Stat::make('Verificaciones pendientes', self::number($pendingVerifications))
                 ->description($pendingVerifications > 0 ? 'Por revisar' : 'Al día')
-                ->color($pendingVerifications > 0 ? 'warning' : 'gray'),
+                ->color($pendingVerifications > 0 ? 'warning' : 'gray')
+                ->url(DoctorResource::getUrl('index', ['tab' => 'verification'])),
 
             Stat::make('Reclamaciones pendientes', self::number($pendingClaims))
                 ->description($staleClaims > 0 ? "{$staleClaims} con más de 48 h" : 'Ninguna con más de 48 h')

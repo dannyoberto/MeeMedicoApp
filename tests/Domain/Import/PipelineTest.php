@@ -12,6 +12,8 @@ use App\Domain\Import\Actions\PublishImportBatchAction;
 use App\Domain\Import\Actions\ResolveImportRowAction;
 use App\Domain\Import\Enums\ImportResolution;
 use App\Domain\Import\Exceptions\ImportFileException;
+use App\Domain\Import\ImportPipeline;
+use App\Domain\Import\Jobs\RunImportStage;
 use App\Domain\Import\Template\SampleWriter;
 use App\Domain\Import\Template\TemplateColumns;
 use App\Domain\Import\Template\TemplateWriter;
@@ -318,4 +320,65 @@ it('la muestra sintética se lee entera y deja los casos difíciles en revisión
 
     expect($batch->rows_total)->toBeGreaterThan(30)
         ->and($batch->rows_review)->toBeGreaterThan(0);
+});
+
+describe('resolución en lote', function () {
+    it('decide varios médicos de una vez, informa de los que no puede y deja fuera lo que no está en revisión', function () {
+        $batch = runToReview(importFile([
+            row(),
+            row(['last_name' => 'Rojas Mora', 'address' => 'Calle 2']),
+            row(['doctor_ref' => 'MED-002', 'first_name' => 'Luis', 'last_name' => 'Soto', 'license_number' => 'LIC-2', 'city' => 'Inexistente', 'phone' => '2222-4444']),
+            row(['doctor_ref' => 'MED-003', 'first_name' => 'Marta', 'last_name' => 'Vega', 'license_number' => 'LIC-3', 'address' => 'Calle 5', 'phone' => '2222-5555']),
+        ]));
+        expect(rowsOf($batch, 'MED-003')->first()->status->value)->not->toBe('needs_review');
+
+        $report = app(ResolveImportRowAction::class)->executeMany($batch, $batch->rows()->get(), ImportResolution::CreateNew, admin());
+
+        expect($report['resolved'])->toBe(1)
+            ->and($report['ignored'])->toBe(1)
+            ->and(array_sum($report['failed']))->toBe(1)
+            ->and(rowsOf($batch, 'MED-001')->pluck('status')->map->value->all())->toBe(['approved', 'approved'])
+            ->and(rowsOf($batch, 'MED-002')->first()->status->value)->toBe('needs_review');
+    });
+
+    it('descartar en lote sí resuelve filas con datos por corregir', function () {
+        $batch = runToReview(importFile([row(['city' => 'Inexistente'])]));
+
+        $report = app(ResolveImportRowAction::class)->executeMany($batch, $batch->rows()->get(), ImportResolution::Discard, admin());
+
+        expect($report['resolved'])->toBe(1)->and(rowsOf($batch, 'MED-001')->first()->status->value)->toBe('skipped');
+    });
+
+    it('vincular nunca va en lote', function () {
+        $batch = runToReview(importFile([row()]));
+
+        expect(fn () => app(ResolveImportRowAction::class)->executeMany($batch, $batch->rows()->get(), ImportResolution::LinkExisting, admin()))
+            ->toThrow(InvalidArgumentException::class);
+    });
+});
+
+describe('avisos al terminar una etapa', function () {
+    it('quien lanza la etapa recibe el aviso en el backoffice', function () {
+        $admin = admin();
+        $batch = app(IngestImportFileAction::class)->execute(importFile([row()]), 'lote.xlsx', country(), 'plantilla_meemedico', $admin);
+
+        app(ImportPipeline::class)->process($batch, $admin);
+        expect($admin->notifications()->latest()->first()?->data['title'])->toBe('Lote listo para revisar');
+
+        app(ImportPipeline::class)->apply($batch->fresh(), $admin);
+        expect($admin->notifications()->count())->toBe(2)
+            ->and($admin->notifications()->where('data->title', 'Lote aplicado')->exists())->toBeTrue();
+    });
+
+    it('si nadie la lanzó, avisa a quien subió el lote; y una etapa que falla avisa con el motivo', function () {
+        $uploader = admin();
+        $batch = app(IngestImportFileAction::class)->execute(importFile([row()]), 'lote.xlsx', country(), 'plantilla_meemedico', $uploader);
+
+        (new RunImportStage($batch->id, RunImportStage::APPLY))->failed(new RuntimeException('disco lleno'));
+
+        $notification = $uploader->notifications()->firstOrFail();
+        expect($notification->data['title'])->toContain('Falló el lote')
+            ->and($notification->data['body'])->toContain('disco lleno')
+            ->and($batch->fresh()->status->value)->toBe('failed');
+    });
 });

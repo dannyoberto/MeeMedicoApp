@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ImportBatches;
 
+use App\Domain\Import\Enums\ImportBatchStatus;
 use App\Filament\Resources\ImportBatches\Pages\CreateImportBatch;
 use App\Filament\Resources\ImportBatches\Pages\ListImportBatches;
 use App\Filament\Resources\ImportBatches\Pages\ViewImportBatch;
@@ -37,7 +38,29 @@ class ImportBatchResource extends Resource
 
     protected static ?string $pluralModelLabel = 'lotes de importación';
 
+    protected static bool $isGloballySearchable = false;
+
     protected static ?string $recordTitleAttribute = 'file_name';
+
+    /**
+     * Lotes esperando una decisión humana.
+     */
+    public static function getNavigationBadge(): ?string
+    {
+        $review = ImportBatch::where('status', ImportBatchStatus::Review)->count();
+
+        return $review > 0 ? (string) $review : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Lotes en revisión';
+    }
 
     public static function form(Schema $schema): Schema
     {
