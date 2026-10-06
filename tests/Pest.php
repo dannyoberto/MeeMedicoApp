@@ -15,6 +15,7 @@ use App\Models\City;
 use App\Models\Country;
 use App\Models\Doctor;
 use App\Models\Facility;
+use App\Models\Insurer;
 use App\Models\Region;
 use App\Models\Specialty;
 use App\Models\User;
@@ -137,6 +138,22 @@ function activeFacility(array $data = [], ?User $actor = null): Facility
     app(PublishFacilityAction::class)->execute($facility, $actor);
 
     return $facility->refresh();
+}
+
+/**
+ * Aseguradora activa de un país.
+ *
+ * @param  array<string, mixed>  $data
+ */
+function insurer(string $name = 'BMI Seguros', string $countryCode = 'CR', array $data = []): Insurer
+{
+    return Insurer::create([
+        'country_id' => country($countryCode)->id,
+        'name' => $name,
+        'slug' => Str::slug($name),
+        'type' => 'private',
+        ...$data,
+    ]);
 }
 
 function publishedDoctor(array $data = [], ?User $actor = null): Doctor

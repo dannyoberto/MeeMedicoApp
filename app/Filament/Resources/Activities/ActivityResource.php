@@ -63,6 +63,7 @@ class ActivityResource extends Resource
         'App\Models\Location' => 'Ubicación',
         'App\Models\Facility' => 'Establecimiento',
         'App\Models\FacilityNetwork' => 'Red',
+        'App\Models\Insurer' => 'Aseguradora',
         'App\Models\Language' => 'Idioma',
         'App\Models\ImportBatch' => 'Lote de importación',
         'App\Models\ImportRow' => 'Fila de importación',

@@ -11,6 +11,7 @@ use App\Filament\Resources\Doctors\Pages\ListDoctors;
 use App\Filament\Resources\Doctors\RelationManagers\ActivitiesRelationManager;
 use App\Filament\Resources\Doctors\RelationManagers\ContactsRelationManager;
 use App\Filament\Resources\Doctors\RelationManagers\ExternalReferencesRelationManager;
+use App\Filament\Resources\Doctors\RelationManagers\InsurersRelationManager;
 use App\Filament\Resources\Doctors\RelationManagers\LanguagesRelationManager;
 use App\Filament\Resources\Doctors\RelationManagers\LocationsRelationManager;
 use App\Filament\Resources\Doctors\RelationManagers\SpecialtiesRelationManager;
@@ -125,6 +126,7 @@ class DoctorResource extends Resource
             LocationsRelationManager::class,
             ContactsRelationManager::class,
             LanguagesRelationManager::class,
+            InsurersRelationManager::class,
             ExternalReferencesRelationManager::class,
             ActivitiesRelationManager::class,
         ];

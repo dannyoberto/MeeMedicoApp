@@ -17,4 +17,13 @@ return [
         'assets',
     ],
 
+    /*
+    | Disco de las imágenes del directorio (logos de establecimientos). Hoy, el disco
+    | `public` de Laravel (storage/app/public, servido en /storage tras storage:link).
+    | Pasar a Cloudflare R2 o S3 es definir ese disco en filesystems.php y cambiar esta
+    | variable: lo guardado en la base es la ruta relativa, no la URL.
+    */
+
+    'media_disk' => env('MEDIA_DISK', 'public'),
+
 ];

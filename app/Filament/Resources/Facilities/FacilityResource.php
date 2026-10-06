@@ -8,6 +8,7 @@ use App\Filament\Resources\Facilities\Pages\EditFacility;
 use App\Filament\Resources\Facilities\Pages\ListFacilities;
 use App\Filament\Resources\Facilities\RelationManagers\ContactsRelationManager;
 use App\Filament\Resources\Facilities\RelationManagers\DoctorsRelationManager;
+use App\Filament\Resources\Facilities\RelationManagers\InsurersRelationManager;
 use App\Filament\Resources\Facilities\RelationManagers\LocationsRelationManager;
 use App\Filament\Resources\Facilities\Schemas\FacilityForm;
 use App\Filament\Resources\Facilities\Tables\FacilitiesTable;
@@ -57,6 +58,7 @@ class FacilityResource extends Resource
             LocationsRelationManager::class,
             ContactsRelationManager::class,
             DoctorsRelationManager::class,
+            InsurersRelationManager::class,
             ActivitiesRelationManager::class,
         ];
     }

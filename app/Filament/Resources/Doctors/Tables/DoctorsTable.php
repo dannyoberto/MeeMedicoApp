@@ -109,6 +109,10 @@ class DoctorsTable
                     ->relationship('specialties', 'name')
                     ->searchable(),
                 self::cityFilter(),
+                SelectFilter::make('insurer')
+                    ->label('Aseguradora')
+                    ->relationship('insurers', 'name')
+                    ->searchable(),
                 SelectFilter::make('import_batch_id')
                     ->label('Lote de importación')
                     ->relationship('importBatch', 'file_name')
@@ -151,6 +155,8 @@ class DoctorsTable
                 BulkActionGroup::make([
                     DoctorBulkActions::publish(),
                     DoctorBulkActions::unpublish(),
+                    DoctorBulkActions::assignInsurer(),
+                    DoctorBulkActions::removeInsurer(),
                 ])->label('Acciones en lote'),
             ])
             ->emptyStateHeading(fn ($livewire) => ($livewire->activeTab ?? 'all') === 'all' && blank($livewire->tableSearch ?? null)

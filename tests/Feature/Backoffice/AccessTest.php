@@ -26,7 +26,7 @@ it('el admin ve cada sección y un usuario médico recibe 403', function (string
     $this->actingAs($doctor)->get(panel($path))->assertForbidden();
 })->with([
     '/', '/doctors', '/doctors/create', '/locations', '/locations/create',
-    '/facilities', '/facilities/create', '/facility-networks',
+    '/facilities', '/facilities/create', '/facility-networks', '/insurers',
     '/specialties', '/countries', '/regions', '/cities', '/languages',
     '/users', '/users/create', '/roles', '/activities',
     '/doctor-suppressions', '/doctor-suppressions/create',

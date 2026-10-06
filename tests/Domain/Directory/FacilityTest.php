@@ -11,6 +11,8 @@ use App\Domain\Directory\Actions\UpdateFacilityAction;
 use App\Domain\Directory\Actions\UpdateSlugAction;
 use App\Domain\Directory\Enums\LocationType;
 use App\Domain\Directory\Exceptions\DirectoryRuleException;
+use App\Domain\Directory\Support\FacilityPublicationRequirements;
+use App\Models\Facility;
 use App\Models\FacilityNetwork;
 use App\Models\Location;
 use App\Models\SlugRedirect;
@@ -45,6 +47,32 @@ describe('alta y edición', function () {
             ->and($otherCountry->slug)->toBe('hospital-mexico')
             ->and(Activity::where('subject_id', $first->id)->where('event', 'facility.created')->exists())->toBeTrue();
     });
+
+    it('crea en una sola operación su primera sede y sus contactos', function () {
+        $facility = makeFacility([
+            'location' => ['city_id' => city()->id, 'address' => 'Calle 1', 'latitude' => 9.93, 'longitude' => -84.08],
+            'contacts' => [['type' => 'phone', 'value' => '2222-3333'], ['type' => 'email', 'value' => 'info@h.cr']],
+        ]);
+
+        expect($facility->locations()->count())->toBe(1)
+            ->and($facility->contacts()->count())->toBe(2)
+            ->and(FacilityPublicationRequirements::missing($facility))->toBe([]);
+    });
+
+    it('si la sede o un contacto no son válidos, no crea nada y dice cuál falló', function (Closure $data, string $key) {
+        try {
+            makeFacility(['location' => ['city_id' => city()->id, 'address' => 'Calle 1'], ...$data()]);
+            $this->fail('Debió rechazarse');
+        } catch (ValidationException $e) {
+            expect($e->errors())->toHaveKey($key);
+        }
+
+        expect(Facility::count())->toBe(0)->and(Location::count())->toBe(0);
+    })->with([
+        // Closures: city() necesita la base, que no existe al construir el dataset.
+        'teléfono inválido' => [fn () => ['contacts' => [['type' => 'phone', 'value' => '2222-3333'], ['type' => 'phone', 'value' => '12']]], 'contacts.1.value'],
+        'sede en otro país' => [fn () => ['location' => ['city_id' => city('GT', 'Mixco')->id, 'address' => 'x']], 'location.city_id'],
+    ]);
 
     it('hereda el sector de su red si no se indica', function () {
         $facility = makeFacility(['network_id' => network()->id, 'sector' => null]);

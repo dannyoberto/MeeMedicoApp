@@ -10,6 +10,7 @@ use App\Models\City;
 use App\Models\Country;
 use App\Models\Doctor;
 use App\Models\FacilityNetwork;
+use App\Models\Insurer;
 use App\Models\Language;
 use App\Models\Location;
 use App\Models\Region;
@@ -72,6 +73,7 @@ class SetCatalogStatusAction
             $entity instanceof Specialty => $published->whereHas('specialties', fn ($q) => $q->whereKey($entity->getKey())),
             $entity instanceof Language => null, // un idioma no condiciona la publicación
             $entity instanceof FacilityNetwork => null, // la red tampoco: sus establecimientos la conservan
+            $entity instanceof Insurer => null, // ni la aseguradora: sus vínculos se conservan, deja de ofrecerse
             default => null,
         };
     }

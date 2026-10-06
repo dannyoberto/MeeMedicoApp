@@ -182,7 +182,7 @@ Solo el rol `admin`. Los permisos nuevos están en `DATABASE.md` §16.2 y, como 
 
 - **Listado:** filtros por país, tipo, sector, red y estado. Columnas de número de sedes y número de médicos, y una acción en lote para activar o desactivar.
 - **Ficha, por pestañas:**
-  - **Datos:** nombre, tipo, sector, red, descripción y logo (el logo, pendiente: §7.4).
+  - **Datos:** nombre, tipo, sector, red, descripción y logo. Al crear, también la dirección, el GPS y los primeros contactos (§7.4).
   - **Sedes:** crear una sede nueva, o asignar una ubicación existente con sugerencias por nombre y dirección parecidos en la misma ciudad. Es la forma de absorber las ubicaciones de tipo clínica que ya cargó el importador.
   - **Contactos.**
   - **Seguros** (convenios, §5.7).
@@ -195,6 +195,16 @@ Solo el rol `admin`. Los permisos nuevos están en `DATABASE.md` §16.2 y, como 
 - **Listado:** filtros por país, tipo y estado, con el número de médicos de cada una.
 - **Ficha:** datos y una pestaña **Médicos** para vincular y desvincular.
 - **Carga a escala:** acción en lote **"Asignar seguro"** en el listado de Médicos. Es el caso real: una aseguradora entrega su red de médicos y el admin los filtra y asigna de una vez.
+
+**Detalles fijados al implementar las Etapas 4 y 5:**
+
+- **Alta y edición de la aseguradora.** Se da de alta en un modal (país, tipo, nombre y slug propuesto desde el nombre, único por país) y se edita en su página, con dos pestañas: **Médicos** y **Establecimientos**. El slug solo cambia con "Cambiar slug", que deja el 301.
+- **En lote, desde el listado de Médicos,** hay "Asignar aseguradora" y "Quitar aseguradora":
+  - los médicos de otro país se omiten y se informa;
+  - con más de 100 seleccionados, el trabajo va a la cola (`ApplyInsurerToDoctorsJob`) y avisa en la campana al terminar.
+- **Filtro "Aseguradora"** en el listado de Médicos, para revisar la red de cada una.
+- **Desactivar una aseguradora no rompe nada.** Se puede aunque la usen fichas publicadas: los vínculos se conservan y solo deja de ofrecerse para nuevas asignaciones.
+- **Auditoría.** Asignar o quitar se registra como `doctor.updated` o `facility.updated` (`part = insurers`, con el nombre de la aseguradora). En una ficha publicada, también purga su página.
 
 ## 7.3 Directorio → Redes (nuevo, catálogo simple)
 
@@ -214,7 +224,16 @@ Gestión en modal, como Regiones: país, nombre, sigla, sector y estado.
   Si hay una sola sede activa, también la propone.
 - **"Desvincular" quita al médico de todas las sedes del establecimiento, o de ninguna.** Si es una ficha publicada y no tiene otra ubicación, se rechaza con el aviso de siempre.
 - **El listado** cuenta sedes y médicos, busca sin acentos, tiene pestañas por estado y permite activar y desactivar en lote (hasta 100 por vez).
-- **El logo todavía no se puede subir.** La columna `logo_path` existe, pero subir archivos exige decidir el almacenamiento (local frente a R2/S3) y el tratamiento de imágenes. Es la misma decisión pendiente que la foto del médico; se toma junto con la landing.
+- **El alta captura dirección, GPS, dos teléfonos y un correo** (decisión de octubre de 2026). No son columnas del establecimiento:
+  - la dirección (País → Región → Ciudad, dirección, latitud y longitud) se guarda como **su primera sede**, con el nombre del establecimiento como nombre del lugar;
+  - los teléfonos y el correo se guardan como **sus contactos**, normalizados.
+  `CreateFacilityAction` lo hace en una sola transacción, con las mismas Actions que las pestañas: si un dato falla, no se crea nada y se marca el campo. Después del alta, sedes y contactos se editan en sus pestañas. Se descartó poner columnas de dirección y teléfonos en `facilities`, porque duplicaban las sedes y los contactos.
+- **El logo se sube al disco `public` de Laravel** (`storage/app/public`, servido en `/storage` tras `php artisan storage:link`):
+  - el disco se configura con `MEDIA_DISK` (`config('meemedico.media_disk')`), y en la base se guarda la ruta relativa, así que pasar a Cloudflare R2 o S3 es configurar el disco, sin migrar datos;
+  - se aceptan PNG, JPG o WebP de hasta 2 MB; SVG no, porque puede llevar scripts;
+  - al reemplazar o quitar un logo, el archivo anterior se borra después del commit;
+  - la URL del disco `public` es **relativa** (`/storage/...`, `PUBLIC_STORAGE_URL`). La app se sirve en dos dominios, y una URL absoluta a `APP_URL` es otro origen para el backoffice: el campo de subida (FilePond) descarga la vista previa con `fetch`, el navegador la bloquea por CORS y se queda en "Cargando". **Al pasar a R2 o S3**, el bucket tendrá que permitir CORS desde `admin.meemedico.com`.
+  El tratamiento de imágenes (tamaños, conversión a WebP) sigue pendiente, junto con la foto del médico.
 
 ## 7.5 Cambios en pantallas existentes
 
@@ -227,6 +246,8 @@ Gestión en modal, como Regiones: país, nombre, sigla, sector y estado.
 # 8. Plan de implementación
 
 Cada etapa se puede entregar y probar por separado. Las etapas 1 y 3 incluyen migraciones, así que se ejecutan en plan mode (`CLAUDE.md`).
+
+**Estado (octubre de 2026):** Etapas 1 a 5 hechas. Pendiente la 6 (purga de las fichas de los médicos al renombrar o desactivar establecimientos y aseguradoras), que solo tiene efecto cuando la ficha pública los muestre.
 
 | Etapa | Contenido | Tests (`tests/Domain/`) |
 |---|---|---|

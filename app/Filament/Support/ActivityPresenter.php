@@ -65,6 +65,7 @@ final class ActivityPresenter
         'locations' => 'Ubicaciones',
         'contacts' => 'Contactos',
         'languages' => 'Idiomas',
+        'insurers' => 'Aseguradoras',
     ];
 
     /** En un establecimiento, sus ubicaciones son sus sedes. */
@@ -133,7 +134,7 @@ final class ActivityPresenter
             $detail = match (true) {
                 isset($p['type']) && $p['part'] === 'contacts' => ContactType::tryFrom($p['type'])?->getLabel(),
                 isset($p['type']) && $p['part'] === 'locations' => LocationType::tryFrom($p['type'])?->getLabel(),
-                default => $p['specialty'] ?? $p['language'] ?? null,
+                default => $p['specialty'] ?? $p['language'] ?? $p['insurer'] ?? null,
             };
 
             $parts = str_starts_with((string) $activity->event, 'facility.') ? [...self::PARTS, ...self::FACILITY_PARTS] : self::PARTS;

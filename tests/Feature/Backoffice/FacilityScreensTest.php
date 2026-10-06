@@ -15,7 +15,10 @@ use App\Filament\Resources\FacilityNetworks\Pages\ManageFacilityNetworks;
 use App\Filament\Resources\Locations\Pages\ListLocations;
 use App\Models\Facility;
 use App\Models\FacilityNetwork;
+use App\Models\Location;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 /*
@@ -34,17 +37,94 @@ function facilityTab(string $class, Facility $facility)
     return Livewire::test($class, ['ownerRecord' => $facility->fresh(), 'pageClass' => EditFacility::class]);
 }
 
-it('el operador crea, completa y activa un establecimiento de principio a fin', function () {
-    Livewire::test(CreateFacility::class)
+/**
+ * Formulario de alta con lo mínimo: país, nombre, tipo, sector y dirección.
+ */
+function facilityCreateForm(array $extra = [])
+{
+    $city = city();
+    $page = Livewire::test(CreateFacility::class)
         ->set('data.country_id', country()->id)
         ->set('data.name', 'Hospital Clínica Bíblica')
         ->set('data.type', 'hospital')
         ->set('data.sector', 'private')
-        ->call('create')
-        ->assertHasNoErrors();
+        ->set('data.region_id', $city->region_id)
+        ->set('data.city_id', $city->id)
+        ->set('data.address', 'Av. 14, calles central y 1');
+
+    foreach ($extra as $key => $value) {
+        $page->set("data.{$key}", $value);
+    }
+
+    return $page;
+}
+
+it('el alta guarda la dirección como primera sede y los teléfonos y el correo como contactos', function () {
+    facilityCreateForm([
+        'latitude' => '9.9325', 'longitude' => '-84.0795',
+        'phone_1' => '2522-1000', 'phone_2' => '2522-1001', 'email' => 'Info@ClinicaBiblica.com',
+    ])->call('create')->assertHasNoErrors();
 
     $facility = Facility::where('slug', 'hospital-clinica-biblica')->firstOrFail();
-    expect($facility->status->value)->toBe('draft');
+    $sede = $facility->locations()->sole();
+
+    expect($facility->status->value)->toBe('draft')
+        ->and($sede->only(['name', 'address', 'city_id']))->toBe(['name' => 'Hospital Clínica Bíblica', 'address' => 'Av. 14, calles central y 1', 'city_id' => city()->id])
+        ->and((float) $sede->latitude)->toBe(9.9325)
+        ->and($facility->contacts()->orderBy('value')->pluck('value_normalized')->all())->toBe(['+50625221000', '+50625221001', 'info@clinicabiblica.com'])
+        ->and($facility->contacts()->where('is_primary', true)->where('type', 'phone')->value('value'))->toBe('2522-1000');
+
+    // Con sede y teléfono queda listo: se activa sin más pasos.
+    Livewire::test(EditFacility::class, ['record' => $facility->id])->callAction('publish');
+    expect($facility->fresh()->status->value)->toBe('active');
+});
+
+it('la región depende del país y la ciudad de la región', function () {
+    $city = city();
+
+    facilityCreateForm()
+        ->set('data.region_id', null)
+        ->assertSet('data.city_id', null)
+        ->set('data.region_id', $city->region_id)
+        ->set('data.city_id', $city->id)
+        ->set('data.country_id', country('GT')->id)
+        ->assertSet('data.region_id', null)
+        ->assertSet('data.city_id', null);
+});
+
+it('si un contacto no es válido no crea nada y marca el campo', function () {
+    facilityCreateForm(['phone_1' => '2522-1000', 'phone_2' => '123'])
+        ->call('create')
+        ->assertHasErrors(['data.phone_2']);
+
+    expect(Facility::count())->toBe(0)
+        ->and(Location::count())->toBe(0);
+});
+
+it('exige latitud y longitud juntas', function () {
+    facilityCreateForm(['latitude' => '9.9325'])->call('create')->assertHasErrors(['data.longitude']);
+});
+
+it('sube el logo al disco de medios y lo reemplaza sin dejar huérfano el anterior', function () {
+    Storage::fake('public');
+
+    facilityCreateForm(['logo_path' => UploadedFile::fake()->image('logo.png', 200, 200)])->call('create')->assertHasNoErrors();
+    $facility = Facility::firstOrFail();
+    $first = $facility->logo_path;
+    Storage::disk('public')->assertExists($first);
+
+    // Como en el navegador: se quita el logo actual del campo y se sube el nuevo.
+    Livewire::test(EditFacility::class, ['record' => $facility->id])
+        ->set('data.logo_path', [])
+        ->set('data.logo_path', UploadedFile::fake()->image('nuevo.webp', 200, 200))
+        ->call('save')->assertHasNoErrors();
+
+    Storage::disk('public')->assertMissing($first);
+    Storage::disk('public')->assertExists($facility->fresh()->logo_path);
+});
+
+it('el operador completa y activa un establecimiento desde sus pestañas', function () {
+    $facility = makeFacility();
 
     facilityTab(LocationsRelationManager::class, $facility)->mountTableAction('createSede')
         ->set('mountedActions.0.data.city_id', city()->id)

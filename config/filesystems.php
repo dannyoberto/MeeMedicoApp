@@ -41,7 +41,10 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            // Relativa a propósito: la misma app se sirve en meemedico.com y en admin.meemedico.com,
+            // y una URL absoluta a APP_URL sería otro origen para el backoffice. FilePond descarga
+            // la vista previa con fetch y el navegador la bloquea por CORS (se queda "Cargando").
+            'url' => env('PUBLIC_STORAGE_URL', '/storage'),
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

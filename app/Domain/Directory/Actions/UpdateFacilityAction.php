@@ -9,6 +9,7 @@ use App\Models\Facility;
 use App\Models\User;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 use function Illuminate\Support\enum_value;
@@ -51,8 +52,10 @@ class UpdateFacilityAction
             }
         }
 
-        if (array_key_exists('description', $fields)) {
-            $fields['description'] = filled($fields['description']) ? trim($fields['description']) : null;
+        foreach (['description', 'logo_path'] as $key) {
+            if (array_key_exists($key, $fields)) {
+                $fields[$key] = filled($fields[$key]) ? trim($fields[$key]) : null;
+            }
         }
 
         return DB::transaction(function () use ($facility, $fields, $actor) {
@@ -65,6 +68,12 @@ class UpdateFacilityAction
             }
 
             $facility->save();
+
+            // El logo reemplazado o quitado no se queda huérfano en el disco; solo tras el commit,
+            // para no perder el archivo si la transacción se revierte.
+            if (array_key_exists('logo_path', $dirty) && filled($old['logo_path'])) {
+                DB::afterCommit(fn () => Storage::disk(config('meemedico.media_disk'))->delete($old['logo_path']));
+            }
 
             if ($dirty !== []) {
                 // Antes y después de cada campo, para que la auditoría permita deshacer a mano.
