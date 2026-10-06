@@ -11,10 +11,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Puede estar compartida por varios médicos (DATABASE.md §9.6): si tiene más de uno,
- * solo la edita un admin. Esa regla es una Policy.
+ * Puede estar compartida por varios médicos (DATABASE.md §9.6) y pertenecer a un
+ * establecimiento como sede (§9.11). En ambos casos solo la edita un admin: es una Policy.
  */
 #[Fillable([
+    'facility_id',
     'country_id',
     'region_id',
     'city_id',
@@ -61,6 +62,14 @@ class Location extends Model
     public function city(): BelongsTo
     {
         return $this->belongsTo(City::class);
+    }
+
+    /**
+     * El establecimiento del que es sede, si lo hay.
+     */
+    public function facility(): BelongsTo
+    {
+        return $this->belongsTo(Facility::class);
     }
 
     public function creator(): BelongsTo

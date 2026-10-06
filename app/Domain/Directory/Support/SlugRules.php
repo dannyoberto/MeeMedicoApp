@@ -6,6 +6,8 @@ use App\Domain\Directory\Enums\SlugRedirectEntity;
 use App\Models\City;
 use App\Models\Country;
 use App\Models\Doctor;
+use App\Models\Facility;
+use App\Models\Insurer;
 use App\Models\Region;
 use App\Models\Specialty;
 use Illuminate\Database\Eloquent\Model;
@@ -26,7 +28,14 @@ final class SlugRules
         Specialty::class => SlugRedirectEntity::Specialty,
         Region::class => SlugRedirectEntity::Region,
         City::class => SlugRedirectEntity::City,
+        Facility::class => SlugRedirectEntity::Facility,
+        Insurer::class => SlugRedirectEntity::Insurer,
     ];
+
+    /**
+     * Entidades con slug varchar(220); el resto de catálogos usa varchar(180).
+     */
+    private const LONG_SLUGS = [Doctor::class, Facility::class, Insurer::class];
 
     public static function entityType(Model|string $model): SlugRedirectEntity
     {
@@ -37,7 +46,7 @@ final class SlugRules
     }
 
     /**
-     * Ámbito de unicidad: especialidades son globales; regiones y ciudades, por país.
+     * Ámbito de unicidad: especialidades son globales; el resto, por país.
      */
     public static function countryScope(SlugRedirectEntity $type, ?string $countryId): ?string
     {
@@ -53,8 +62,7 @@ final class SlugRules
             return 'Solo minúsculas sin acentos, números y guiones simples (ej.: san-jose).';
         }
 
-        // doctors.slug es varchar(220); el resto de entidades, varchar(180).
-        $max = $modelClass === Doctor::class ? 220 : 180;
+        $max = in_array($modelClass, self::LONG_SLUGS, true) ? 220 : 180;
         if (strlen($slug) > $max) {
             return "Máximo {$max} caracteres.";
         }

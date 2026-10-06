@@ -6,6 +6,7 @@ use App\Domain\Directory\Cdn\DoctorCachePurge;
 use App\Domain\Directory\Enums\SlugRedirectEntity;
 use App\Domain\Directory\Support\SlugRules;
 use App\Models\Doctor;
+use App\Models\Facility;
 use App\Models\SlugRedirect;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -37,9 +38,9 @@ class UpdateSlugAction
         $type = SlugRules::entityType($entity);
         $scope = SlugRules::countryScope($type, $countryId);
 
-        // Un médico no puede quedarse con la URL antigua de OTRO médico: esa URL
-        // indexada debe seguir llevando a su dueño. En catálogos el slug vivo prevalece.
-        if ($entity instanceof Doctor) {
+        // Un médico o un establecimiento no puede quedarse con la URL antigua de OTRO:
+        // esa URL indexada debe seguir llevando a su dueño. En catálogos el slug vivo prevalece.
+        if ($entity instanceof Doctor || $entity instanceof Facility) {
             $ownedByOther = SlugRedirect::query()
                 ->where('entity_type', $type)
                 ->where('country_id', $scope)
@@ -48,9 +49,13 @@ class UpdateSlugAction
                 ->exists();
 
             if ($ownedByOther) {
-                throw ValidationException::withMessages(['slug' => 'Ese slug fue la URL de otro médico y sigue redirigiendo a su ficha.']);
+                throw ValidationException::withMessages(['slug' => $entity instanceof Doctor
+                    ? 'Ese slug fue la URL de otro médico y sigue redirigiendo a su ficha.'
+                    : 'Ese slug fue la URL de otro establecimiento y sigue redirigiendo a su página.']);
             }
+        }
 
+        if ($entity instanceof Doctor) {
             DoctorCachePurge::around($entity, fn () => $this->apply($entity, $type, $scope, $oldSlug, $newSlug));
 
             return;

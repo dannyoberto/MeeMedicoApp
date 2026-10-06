@@ -27,4 +27,4 @@ it('coincide con su CHECK de la base', function (string $enum, string $check) {
     expect($inPhp)->toBe($inDatabase);
 })->with($enums->map(fn ($check, $enum) => [$enum, $check])->values()->all());
 
-it('cubre los 28 enums del dominio', fn () => expect($enums)->toHaveCount(28));
+it('cubre los 35 enums del dominio', fn () => expect($enums)->toHaveCount(35));

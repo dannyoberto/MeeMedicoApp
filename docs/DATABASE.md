@@ -2,7 +2,7 @@
 
 **Producto:** MeeMedico.com
 **Fase:** 1 — Directorio Médico Básico + Identity & Administration
-**Versión:** 2.0 (reemplaza la v1.0 sobre MySQL)
+**Versión:** 2.1 (2.0 reemplazó la v1.0 sobre MySQL; 2.1 añade establecimientos y seguros, §9.9–§9.14)
 **Motor:** PostgreSQL 17
 **Framework:** Laravel 13 / PHP 8.4
 **Identificadores:** ULID
@@ -28,7 +28,8 @@ La base de datos debe soportar, en esta fase:
 - Permitir que un médico reclame su perfil y que un admin lo apruebe.
 - Diferenciar creación, administración, verificación y reclamación.
 - Roles y permisos desacoplados.
-- Dejar preparada la evolución hacia búsqueda avanzada, membresías, reservas, reviews y clínicas sin tocar el núcleo.
+- Registrar establecimientos (hospitales, clínicas, centros médicos y centros de salud, públicos y privados) y aseguradoras, y vincularlos con los médicos. Solo desde el backoffice; ver `MODULO-ESTABLECIMIENTOS-SEGUROS.md`.
+- Dejar preparada la evolución hacia búsqueda avanzada, membresías, reservas y reviews sin tocar el núcleo.
 
 ---
 
@@ -58,8 +59,12 @@ Esta sección existe para que el equipo entienda qué se modificó de la propues
 | 18 | **`city_aliases` y `specialty_aliases`** | El mapeo de texto libre a catálogo es el 70% del esfuerzo del import; los alias hacen que cada lote requiera menos intervención que el anterior |
 | 19 | **RBAC sobre `spatie/laravel-permission`** | Ver §6. Cambian los nombres de las tablas respecto a la v1.0 |
 | 20 | **`doctor_contact_events`** | La métrica "te contactaron N veces" es el argumento de venta de premium en Fase 3 y no se puede reconstruir hacia atrás |
+| 21 | **`facilities` entra en Fase 1** (v2.1; estaba prevista para V2) | Decisión de producto de octubre de 2026: establecimientos públicos y privados con sus médicos, gestionados desde el backoffice. Es la evolución `Doctor → Clínica → Ubicación` ya documentada |
+| 22 | **`locations.facility_id`** (v2.1) | El establecimiento es dueño de sus sedes y el médico sigue vinculándose a la sede. Resuelve la decisión pendiente de la dirección compartida (§9.6) |
+| 23 | **`facility_networks`** (v2.1) | Un atributo `sector` no permite listar "todos los hospitales de la CCSS". La red operadora es un catálogo por país |
+| 24 | **`insurers`, `doctor_insurers`, `facility_insurers`** (v2.1) | Médicos y establecimientos por aseguradora. Solo a nivel de aseguradora, sin planes |
 
-**Total: 27 tablas propias** (la v1.0 preveía 14), más las tablas de infraestructura de Laravel y la de `activity_log`. El crecimiento no viene de anticipar fases futuras: 13 de las 13 tablas nuevas salen de tres decisiones de producto ya tomadas (carga masiva, claim en Fase 1, y ficha con contacto visible).
+**Total: 33 tablas propias** (la v1.0 preveía 14), más las tablas de infraestructura de Laravel y la de `activity_log`. Las 27 de la v2.0 salen de tres decisiones de producto (carga masiva, claim en Fase 1 y ficha con contacto visible). Las 6 de la v2.1 salen de una cuarta: establecimientos y seguros en el backoffice.
 
 ---
 
@@ -150,6 +155,7 @@ $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT;
 | Geografía | `countries`, `regions`, `cities`, `city_aliases` |
 | Catálogos | `specialties`, `specialty_aliases`, `languages` |
 | Directorio | `doctors`, `doctor_profiles`, `doctor_specialties`, `doctor_languages`, `locations`, `doctor_locations`, `doctor_contacts` |
+| Establecimientos y seguros | `facility_networks`, `facilities`, `facility_contacts`, `insurers`, `doctor_insurers`, `facility_insurers` |
 | Identidad externa | `doctor_external_references` |
 | Claim | `doctor_claims` |
 | Importación | `import_batches`, `import_rows` |
@@ -707,6 +713,8 @@ CREATE INDEX locations_geo_gist ON locations USING gist (geo);
 
 **Las dos FK compuestas** hacen imposible insertar una ubicación cuya ciudad no pertenezca a su región, o cuya región no pertenezca a su país. Es la validación que la v1.0 delegaba a la aplicación.
 
+**`facility_id`** (v2.1, migración 029) indica a qué establecimiento pertenece la ubicación, si pertenece a alguno. Ver §9.11.
+
 ## 9.6 `doctor_locations`
 
 ```sql
@@ -730,7 +738,11 @@ CREATE UNIQUE INDEX doctor_locations_one_primary_uniq
     ON doctor_locations (doctor_id) WHERE is_primary;
 ```
 
-**Decisión pendiente de confirmar:** la relación es N:N, lo que significa que una dirección puede ser compartida por varios médicos (el caso de la torre médica). El riesgo es que un médico edite una dirección compartida con otros veinte. La regla operativa de Fase 1 es: **una ubicación con más de un médico asociado solo la puede editar un admin.** Es una Policy, no una restricción de base de datos. Cuando llegue la entidad `clinics` en V2, la ubicación pasará a pertenecer a la clínica y la regla desaparece.
+**La relación es N:N**, lo que significa que una dirección puede ser compartida por varios médicos (el caso de la torre médica). El riesgo es que un médico edite una dirección compartida con otros veinte. La regla operativa de Fase 1 es: **una ubicación con más de un médico asociado, o que pertenece a un establecimiento, solo la puede editar un admin.** Es una Policy, no una restricción de base de datos.
+
+**Resuelto en v2.1:** la ubicación compartida pasa a pertenecer a su establecimiento (`locations.facility_id`, §9.11). La regla de "más de un médico" se mantiene para las direcciones que no pertenecen a ningún establecimiento.
+
+`location_type` sigue describiendo **la modalidad del médico** en esa sede, no el tipo de edificio. Un consultorio privado en la torre de un hospital es `office` en una ubicación cuyo establecimiento es `hospital`. No son datos redundantes.
 
 ## 9.7 `doctor_contacts`
 
@@ -798,6 +810,225 @@ CREATE INDEX doctor_external_refs_doctor_idx ON doctor_external_references (doct
 Es una tabla 1:N y no un par de columnas en `doctors` por un motivo concreto: **al fusionar dos fichas duplicadas, el superviviente debe heredar las referencias externas de ambas.** Si no, el siguiente lote de importación no reconoce la referencia huérfana y recrea el duplicado que se acababa de eliminar.
 
 `last_seen_at` indica qué fichas dejaron de aparecer en la fuente, que es la señal para revisar bajas (médico retirado, fallecido o trasladado).
+
+## 9.9 `facility_networks` (v2.1)
+
+```sql
+CREATE TABLE facility_networks (
+    id         ulid PRIMARY KEY,
+    country_id ulid NOT NULL REFERENCES countries(id) ON DELETE RESTRICT,
+
+    name       varchar(200) NOT NULL,   -- 'Caja Costarricense de Seguro Social'
+    short_name varchar(30)  NULL,       -- 'CCSS'
+
+    sector     varchar(20) NOT NULL
+               CONSTRAINT facility_networks_sector_chk
+               CHECK (sector IN ('public','private','mixed')),
+
+    status     varchar(20) NOT NULL DEFAULT 'active'
+               CONSTRAINT facility_networks_status_chk
+               CHECK (status IN ('active','inactive')),
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT facility_networks_country_name_uniq UNIQUE (country_id, name),
+    CONSTRAINT facility_networks_id_country_uniq   UNIQUE (id, country_id)   -- destino de FK compuesta
+);
+```
+
+La red operadora de un establecimiento: CCSS, IGSS, MSPAS, SNS, IVSS o un grupo privado. Es un catálogo pequeño por país. **No lleva slug**, porque hoy no se planea ninguna página de red. Añadirlo después a una tabla de decenas de filas es trivial.
+
+La CCSS puede figurar aquí y también en `insurers`. Son dos papeles distintos de la misma institución (operar hospitales y asegurar), y es una duplicidad aceptada (`MODULO-ESTABLECIMIENTOS-SEGUROS.md` §5.3).
+
+## 9.10 `facilities` (v2.1)
+
+```sql
+CREATE TABLE facilities (
+    id                 ulid PRIMARY KEY,
+    country_id         ulid NOT NULL REFERENCES countries(id) ON DELETE RESTRICT,
+    network_id         ulid NULL,
+
+    name               varchar(200) NOT NULL,   -- 'Hospital Clínica Bíblica'
+    slug               varchar(220) NOT NULL,
+
+    type               varchar(20) NOT NULL
+                       CONSTRAINT facilities_type_chk
+                       CHECK (type IN ('hospital','clinic','medical_center','health_center')),
+
+    sector             varchar(20) NOT NULL
+                       CONSTRAINT facilities_sector_chk
+                       CHECK (sector IN ('public','private','mixed')),
+
+    -- contenido de la futura landing
+    description        text NULL,
+    logo_path          varchar(500) NULL,
+
+    status             varchar(20) NOT NULL DEFAULT 'draft'
+                       CONSTRAINT facilities_status_chk
+                       CHECK (status IN ('draft','active','inactive')),
+
+    created_by_user_id ulid NULL REFERENCES users(id) ON DELETE SET NULL,
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    -- URL futura: /{pais}/clinicas/{slug} para todos los tipos (MODULO-ESTABLECIMIENTOS-SEGUROS §10.2)
+    CONSTRAINT facilities_country_slug_uniq UNIQUE (country_id, slug),
+    CONSTRAINT facilities_id_country_uniq   UNIQUE (id, country_id),   -- destino de FK compuesta
+
+    -- la red, si la hay, es del mismo país
+    CONSTRAINT facilities_network_country_fk
+        FOREIGN KEY (network_id, country_id)
+        REFERENCES facility_networks (id, country_id) ON DELETE RESTRICT
+);
+
+CREATE INDEX facilities_country_type_idx ON facilities (country_id, type);
+CREATE INDEX facilities_network_idx      ON facilities (network_id) WHERE network_id IS NOT NULL;
+```
+
+**El slug es único por país y entre todos los tipos.** La URL es `/{pais}/clinicas/{slug}` para todos los tipos, así que cambiar el tipo de un establecimiento nunca obliga a cambiar su slug.
+
+**`status = 'active'` es la puerta de calidad** de `PublishFacilityAction`: ≥1 sede activa y ≥1 contacto público. Mientras no existan las páginas públicas, `active` significa "listo para publicar". No hay `published_at`: se añadirá con la landing si el sitemap lo necesita.
+
+**`description` y `logo_path` se justifican por la landing ya decidida**, no son campos "por si acaso". Los horarios, servicios y fotografías adicionales se dejan fuera hasta que la página exista y se sepa qué muestra.
+
+**Sin `name_normalized` ni índice trigram.** Hoy los establecimientos se crean solo a mano, y el backoffice busca con `ILIKE` sobre unos pocos miles de filas. Cuando llegue la importación, la deduplicación necesitará la columna normalizada, igual que `doctors` (§9.1). Añadirla y rellenarla entonces es barato.
+
+**Sin `merged`.** No hay fusión de establecimientos mientras la carga sea solo manual. Llega con la importación.
+
+La FK compuesta sobre la red sigue el patrón de la geografía (§7): un establecimiento de Costa Rica no puede pertenecer a una red guatemalteca. Con `network_id` nulo, la FK no se evalúa (`MATCH SIMPLE`).
+
+## 9.11 `locations.facility_id` (v2.1)
+
+```sql
+ALTER TABLE locations ADD COLUMN facility_id ulid NULL;
+
+-- la sede está en el mismo país que su establecimiento
+ALTER TABLE locations
+    ADD CONSTRAINT locations_facility_country_fk
+    FOREIGN KEY (facility_id, country_id)
+    REFERENCES facilities (id, country_id) ON DELETE RESTRICT;
+
+CREATE INDEX locations_facility_idx ON locations (facility_id) WHERE facility_id IS NOT NULL;
+```
+
+**El establecimiento es dueño de sus sedes**, y el médico sigue vinculándose a la sede mediante `doctor_locations`. Los médicos de un establecimiento **se derivan**, no se guardan aparte:
+
+```sql
+SELECT DISTINCT d.*
+FROM doctors d
+JOIN doctor_locations dl ON dl.doctor_id = d.id
+JOIN locations l         ON l.id = dl.location_id
+WHERE l.facility_id = :facility AND d.status = 'active';
+```
+
+Se descartó una N:N `doctor_facilities` independiente porque creaba dos fuentes de verdad que pueden contradecirse. El coste es que no se puede representar al médico "afiliado" sin consultorio en el establecimiento (`MODULO-ESTABLECIMIENTOS-SEGUROS.md` §5.1).
+
+Una ubicación pertenece como máximo a un establecimiento. Reasignarla a otro es una acción explícita de `FacilityLocationsAction`, nunca un efecto secundario.
+
+## 9.12 `facility_contacts` (v2.1)
+
+```sql
+CREATE TABLE facility_contacts (
+    id               ulid PRIMARY KEY,
+    facility_id      ulid NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+    location_id      ulid NULL     REFERENCES locations(id)  ON DELETE SET NULL,
+
+    type             varchar(20) NOT NULL
+                     CONSTRAINT facility_contacts_type_chk
+                     CHECK (type IN ('phone','mobile','whatsapp','email','website')),
+
+    value            varchar(255) NOT NULL,
+    value_normalized varchar(255) NOT NULL,   -- E.164 / minúsculas, como doctor_contacts
+    label            varchar(100) NULL,       -- "Emergencias", "Citas", "Central"
+
+    is_public        boolean NOT NULL DEFAULT true,
+    is_primary       boolean NOT NULL DEFAULT false,
+
+    source           varchar(20) NOT NULL DEFAULT 'admin'
+                     CONSTRAINT facility_contacts_source_chk
+                     CHECK (source IN ('import','admin')),
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT facility_contacts_value_uniq UNIQUE (facility_id, type, value_normalized)
+);
+
+CREATE UNIQUE INDEX facility_contacts_one_primary_uniq
+    ON facility_contacts (facility_id, type) WHERE is_primary;
+
+CREATE INDEX facility_contacts_location_idx ON facility_contacts (location_id);
+```
+
+Es el mismo patrón que `doctor_contacts` (§9.7), y por los mismos motivos. Un hospital tiene central, emergencias y citas, y una sede puede tener su propio teléfono.
+
+**Que `location_id` sea una sede del mismo establecimiento lo impone `FacilityContactsAction`, no el motor.** Imponerlo con una FK compuesta bloquearía la desvinculación de una sede mientras tuviera contactos. La Action desvincula primero los contactos y después la sede.
+
+No hay `verified_at` ni `source = 'facility'`: sin cuentas de establecimiento, nadie más que el admin escribe aquí.
+
+## 9.13 `insurers` (v2.1)
+
+```sql
+CREATE TABLE insurers (
+    id         ulid PRIMARY KEY,
+    country_id ulid NOT NULL REFERENCES countries(id) ON DELETE RESTRICT,
+
+    name       varchar(200) NOT NULL,   -- 'BMI Seguros', 'SeNaSa'
+    slug       varchar(220) NOT NULL,
+
+    type       varchar(20) NOT NULL
+               CONSTRAINT insurers_type_chk
+               CHECK (type IN ('private','public')),
+
+    status     varchar(20) NOT NULL DEFAULT 'active'
+               CONSTRAINT insurers_status_chk
+               CHECK (status IN ('active','inactive')),
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT insurers_country_slug_uniq UNIQUE (country_id, slug)
+);
+```
+
+**Por país, no global.** BMI o Pan-American Life operan en varios países, pero cada uno tiene su propia red de médicos. Una tabla de grupo por encima se puede añadir sin tocar esta.
+
+**Sin planes.** Los planes cambian cada año y hoy no hay nadie que los mantenga. Cuando exista el claim, se podrá añadir `insurer_plans` y una referencia opcional desde `doctor_insurers`.
+
+**El slug** es la base de las futuras páginas de filtro ("cardiólogos que aceptan BMI en San José"), y sigue la regla de §14.2: nunca cambia sin redirección.
+
+**Sin `insurer_aliases` todavía.** Mapear texto libre ("INS", "Instituto Nacional de Seguros") solo hace falta cuando llegue la importación. Entonces se añade con el patrón de `specialty_aliases`.
+
+## 9.14 `doctor_insurers` y `facility_insurers` (v2.1)
+
+```sql
+CREATE TABLE doctor_insurers (
+    doctor_id  ulid NOT NULL REFERENCES doctors(id)  ON DELETE CASCADE,
+    insurer_id ulid NOT NULL REFERENCES insurers(id) ON DELETE RESTRICT,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (doctor_id, insurer_id)
+);
+
+CREATE INDEX doctor_insurers_insurer_idx ON doctor_insurers (insurer_id);
+
+-- convenios del establecimiento (MODULO-ESTABLECIMIENTOS-SEGUROS.md §5.7)
+CREATE TABLE facility_insurers (
+    facility_id ulid NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+    insurer_id  ulid NOT NULL REFERENCES insurers(id)   ON DELETE RESTRICT,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (facility_id, insurer_id)
+);
+
+CREATE INDEX facility_insurers_insurer_idx ON facility_insurers (insurer_id);
+```
+
+**El seguro va por médico, no por médico y sede.** Doctoralia lo hace por consultorio, pero eso multiplica el trabajo de carga, y la fuente que podría mantenerlo (el propio médico, tras el claim) todavía no existe. Pasar a nivel de sede será una columna nullable `location_id`.
+
+**Que el país coincida lo impone la Action, no el motor.** Una FK compuesta exigiría añadir `UNIQUE (id, country_id)` a `doctors` y una columna `country_id` al pivote, solo para esta comprobación. `DoctorInsurersAction` exige que la aseguradora sea del país del médico (`doctors.country_id`), y `FacilityInsurersAction` lo mismo con el establecimiento. Al médico con consulta en dos países (§9.1) no se le ofrecen las aseguradoras del segundo país: es la misma limitación consciente que con los listados.
+
+Desactivar una aseguradora no borra los vínculos. Simplemente deja de ofrecerse en el backoffice y, en el futuro, dejará de mostrarse en el sitio.
 
 ---
 
@@ -876,7 +1107,7 @@ Aprobación (transacción única):
 
 **Advertencia de seguridad.** El número de colegiado suele ser público, así que la coincidencia de licencia es condición necesaria pero **no suficiente**. Un atacante elegirá siempre fichas del grupo que sí tiene licencia registrada. Añade al menos una segunda señal antes de aprobar: correo del dominio del consultorio, o llamada al teléfono que ya figura en la ficha. Más `rate limiting` sobre el endpoint de solicitud.
 
-**Alcance editable tras el claim.** Aprobar un claim no convierte al médico en administrador de su ficha completa. En Fase 1 puede editar `doctor_profiles` (headline, bio, foto), sus contactos y sus ubicaciones. **No** puede modificar `first_name`, `last_name`, `license_number`, `verification_status` ni sus especialidades sin revisión administrativa. Esto es una Policy de Laravel, y es lo que `profile.update` significa realmente.
+**Alcance editable tras el claim.** Aprobar un claim no convierte al médico en administrador de su ficha completa. En Fase 1 puede editar `doctor_profiles` (headline, bio, foto), sus contactos, sus ubicaciones y sus aseguradoras (`doctor_insurers`, v2.1, con registro en `activity_log`). Las ubicaciones que pertenecen a un establecimiento no las edita: solo puede vincularse a ellas o desvincularse. **No** puede modificar `first_name`, `last_name`, `license_number`, `verification_status` ni sus especialidades sin revisión administrativa. Esto es una Policy de Laravel, y es lo que `profile.update` significa realmente.
 
 ---
 
@@ -895,6 +1126,11 @@ Estas reglas viven en Actions de dominio, nunca en controladores, porque los com
 | `ApplyImportBatchAction` | Solo aplica filas en `matched`, `new` o `approved`. Nunca publica |
 | `UpdateSlugAction` | Escribe `slug_redirects` antes de cambiar el slug. Nunca cambia un slug sin dejar el 301 |
 | `RevokeSuppressionAction` | Revoca una sola vez, con motivo y fecha de la solicitud. No borra la supresión ni republica fichas (§14.1) |
+| `PublishFacilityAction` | Solo activa un establecimiento con ≥1 sede activa y ≥1 contacto público (§9.10) |
+| `FacilityLocationsAction` | La sede es del mismo país. Una ubicación de otro establecimiento solo se reasigna con la acción explícita de mover. Al quitar una sede, desvincula antes sus contactos (§9.11, §9.12) |
+| `DoctorInsurersAction` / `FacilityInsurersAction` | Solo aseguradoras activas del mismo país que el médico o el establecimiento (§9.14) |
+
+Las Actions de establecimientos y seguros se detallan en `MODULO-ESTABLECIMIENTOS-SEGUROS.md` §6. Ninguna de ellas cambia la puerta de publicación del médico: no se le exige tener establecimiento ni seguro.
 
 **Regla de oro del repositorio:** si una de estas reglas aparece dentro de un controlador o de un recurso de Filament, es un bug. El único lugar correcto es la Action, porque el importador y la futura API móvil llaman a la misma.
 
@@ -1105,7 +1341,7 @@ El punto 6 dimensiona la revisión manual. Con un 3% sobre 20.000 médicos son 6
 
 `MergeDoctorsAction`, en una sola transacción:
 
-1. Mueve al superviviente: `doctor_external_references`, `doctor_specialties`, `doctor_languages`, `doctor_locations`, `doctor_contacts`, `doctor_claims`.
+1. Mueve al superviviente: `doctor_external_references`, `doctor_specialties`, `doctor_languages`, `doctor_locations`, `doctor_contacts`, `doctor_insurers`, `doctor_claims`.
 2. Escribe `slug_redirects` del slug perdedor hacia el ganador (301, nunca 404).
 3. Marca el perdedor: `status = 'merged'`, `merged_into_doctor_id = ganador`.
 4. Registra en `activity_log` el estado completo previo de **ambos** registros.
@@ -1183,7 +1419,8 @@ CREATE TABLE slug_redirects (
     id          ulid PRIMARY KEY,
     entity_type varchar(30) NOT NULL
                 CONSTRAINT slug_redirects_entity_chk
-                CHECK (entity_type IN ('doctor','specialty','city','region')),
+                CHECK (entity_type IN ('doctor','specialty','city','region',
+                                       'facility','insurer')),   -- v2.1, migración 034
     entity_id   ulid NOT NULL,
     country_id  ulid NULL REFERENCES countries(id) ON DELETE RESTRICT,
 
@@ -1198,7 +1435,7 @@ CREATE TABLE slug_redirects (
 
 La resolución es: la ruta pública no encuentra el slug, busca aquí, obtiene la entidad, y responde **301** hacia su slug actual. Nunca 404.
 
-`country_id` es nullable porque `specialty` tiene slug global. Para `doctor` y `city` es obligatorio a nivel de aplicación.
+`country_id` es nullable porque `specialty` tiene slug global. Para `doctor`, `city`, `facility` e `insurer` es obligatorio a nivel de aplicación.
 
 En un import masivo vas a corregir nombres mal escritos durante meses. Cada corrección de slug pasa por `UpdateSlugAction`, que escribe aquí antes de tocar nada.
 
@@ -1258,6 +1495,11 @@ Registrados además desde el backoffice (Etapas 1–3):
 - `location.updated`, `catalog.activated` y `catalog.deactivated`.
 - `suppression.revoked` (con el motivo en `properties`).
 - Los cambios del agregado (especialidades, ubicaciones, contactos, idiomas) se registran como `doctor.updated`, con `part` y `op` en `properties`.
+- Establecimientos y seguros (v2.1):
+  - `facility.created`, `facility.updated` (con `attribute_changes`), `facility.published` y `facility.unpublished`.
+  - Los cambios de sedes, contactos y aseguradoras del establecimiento se registran como `facility.updated`, con `part` y `op` en `properties`.
+  - Las aseguradoras del médico, como `doctor.updated` con `part = insurers`.
+  - Las altas y bajas de redes y aseguradoras, como `catalog.activated` y `catalog.deactivated`.
 - La edición de datos y perfil (`UpdateDoctorAction`) registra `doctor.updated` con los nombres de los campos en `properties.fields` y, en `attribute_changes`, su valor anterior y el nuevo (formato de spatie: `old` / `attributes`; los campos del perfil con prefijo `profile.`). Es lo que permite deshacer a mano una edición equivocada y lo que muestra la pestaña Historial de la ficha.
 
 El historial es lo único de este documento que no se puede añadir después. Media jornada de trabajo ahora, irrecuperable más tarde.
@@ -1294,7 +1536,17 @@ El historial es lo único de este documento que no se puede añadir después. Me
 024  activity_log                  (spatie)
 025  doctor_suppressions: columnas de revocación (§14.1)
 026  notifications                 (infraestructura de Laravel, §17)
+027  facility_networks             (v2.1, §9.9)
+028  facilities                    (§9.10)
+029  locations: facility_id + FK compuesta (§9.11)
+030  facility_contacts             (§9.12)
+031  insurers                      (§9.13)
+032  doctor_insurers               (§9.14)
+033  facility_insurers             (§9.14)
+034  slug_redirects: CHECK de entity_type con 'facility' e 'insurer' (§14.2)
 ```
+
+La 029 es un `ALTER` sobre una tabla con datos: la columna es nullable y la FK no tiene nada que validar en las filas existentes, así que es instantánea.
 
 La 000 es imprescindible antes que todo: `doctors.search_vector` referencia `es_unaccent`, y todos los PK usan el dominio `ulid`.
 
@@ -1331,6 +1583,10 @@ geography.manage
 
 contacts.view        contacts.update
 
+facilities.view      facilities.create     facilities.update    facilities.delete
+facilities.publish   networks.manage
+insurers.view        insurers.create       insurers.update      insurers.delete
+
 claims.view          claims.approve        claims.reject
 
 imports.view         imports.create        imports.resolve      imports.apply
@@ -1345,7 +1601,7 @@ activity.view
 **ADMIN:** todos los anteriores.
 **DOCTOR:** `profile.view`, `profile.claim`, `profile.update` (limitado a `doctors.user_id = auth()->id()` y al subconjunto de campos del §10.2).
 
-**`*.delete` no borra.** Ninguna entidad del directorio se borra físicamente (§3.5): `specialties.delete` y `locations.delete` autorizan la **baja lógica** (`status = 'inactive'`). Las Policies devuelven siempre `false` para `delete`, salvo en los alias de ciudad y especialidad, que son mapeos sin `status` y se corrigen borrándolos.
+**`*.delete` no borra.** Ninguna entidad del directorio se borra físicamente (§3.5): `specialties.delete`, `locations.delete`, `facilities.delete` e `insurers.delete` autorizan la **baja lógica** (`status = 'inactive'`). Las Policies devuelven siempre `false` para `delete`, salvo en los alias de ciudad y especialidad, que son mapeos sin `status` y se corrigen borrándolos.
 
 **Convención de nombres.** En plural (`profiles.update`), el permiso opera sobre cualquier registro y es del backoffice. En singular (`profile.update`), opera solo sobre lo propio, y el alcance lo limita una Policy.
 
@@ -1357,6 +1613,7 @@ La **lista canónica** es `database/seeders/PermissionSeeder.php`. Lo de arriba 
 - **Regiones y ciudades:** por país, antes del primer import de ese país.
 - **Especialidades:** catálogo curado manualmente. No lo generes desde el archivo de import; el catálogo debe ser la autoridad y los alias el puente.
 - **Idiomas:** español, inglés, francés, portugués.
+- **Redes y aseguradoras:** sin seed. Las carga el admin en el backoffice, por país. Son catálogos de decenas de filas, y cada país decide si su seguridad social figura como aseguradora.
 
 ---
 
@@ -1382,7 +1639,7 @@ notifications
 No se crean todavía:
 
 ```
-patients      clinics        assistants
+patients      assistants     insurer_plans
 appointments  availability   schedules
 reviews       ratings
 plans         subscriptions  payments
@@ -1396,7 +1653,8 @@ Y las decisiones que las mantienen desacopladas:
 - **Membership:** no hay `is_premium` ni `subscription_type` en `doctors`. La futura cadena será `Doctor → Subscription → Plan → Features`, y el punto de enganche de la visibilidad ya existe en `doctor_contacts.is_public`.
 - **Reviews:** no hay `rating` ni `reviews_count` en `doctors`. La reputación se calculará desde `reviews` y se cacheará donde convenga.
 - **Booking:** `locations` y `doctors` ya tienen la estructura para colgar disponibilidad. Entonces habrá que añadir `countries.timezone` o `locations.timezone`.
-- **Clinics:** una ubicación puede ser `location_type = 'clinic'` sin que `Clinic` sea una entidad. La evolución será `Doctor → Clinic → Location`, y la N:N actual de `doctor_locations` ya la admite.
+- **Establecimientos** (v2.1): la entidad existe (`facilities`, §9.10), pero solo como dato del backoffice. Quedan fuera las cuentas de establecimiento, el claim de establecimientos, que una clínica gestione su plantilla, la landing pública y su importación masiva. Ver `MODULO-ESTABLECIMIENTOS-SEGUROS.md` §2 y §9.
+- **Seguros** (v2.1): solo aseguradora, sin planes ni convenios con precio. `insurer_plans` llegará cuando el médico pueda mantener sus propios datos tras el claim.
 - **Búsqueda avanzada:** `search_vector` y los índices trigram cubren Fase 1. Fase 2 añade una vista materializada o Meilisearch detrás de una interfaz `DoctorSearchService`, sin tocar el núcleo.
 
 ---

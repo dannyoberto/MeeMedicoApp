@@ -41,4 +41,14 @@ class Country extends Model
     {
         return $this->hasMany(Doctor::class);
     }
+
+    public function facilities(): HasMany
+    {
+        return $this->hasMany(Facility::class);
+    }
+
+    public function insurers(): HasMany
+    {
+        return $this->hasMany(Insurer::class);
+    }
 }

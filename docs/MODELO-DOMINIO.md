@@ -72,7 +72,11 @@ Una dirección física donde se atiende.
 
 Es una entidad **compartible**: la misma torre médica puede alojar a veinte profesionales. De ahí que la relación con Doctor sea de muchos a muchos, y no una dirección por médico.
 
-Esa decisión tiene un coste que hay que gestionar: un médico podría editar una dirección que comparte sin saberlo. **Regla operativa de Fase 1:** una ubicación asociada a más de un médico solo la puede editar un administrador. Cuando llegue la entidad Clínica, la dirección pasará a pertenecerle y la regla desaparece.
+Esa decisión tiene un coste que hay que gestionar: un médico podría editar una dirección que comparte sin saberlo. **Regla operativa de Fase 1:** una ubicación asociada a más de un médico, o que pertenece a un establecimiento, solo la puede editar un administrador.
+
+Una ubicación puede pertenecer a un **Establecimiento** (§2.12), y entonces es una de sus sedes. Que el médico atienda en esa sede es lo que lo convierte en "médico del establecimiento".
+
+La **modalidad** con que el médico atiende en una ubicación (consultorio propio, clínica, hospital) es un dato del vínculo médico–ubicación, no del edificio. Un consultorio privado en la torre de un hospital es un consultorio dentro de una sede del hospital.
 
 Un Doctor tiene **como máximo una ubicación principal**, que es la que determina en qué listados de ciudad aparece.
 
@@ -150,23 +154,61 @@ La memoria de las direcciones web antiguas.
 
 En un producto cuyo canal de adquisición es el buscador, cambiar una dirección ya indexada sin dejar una redirección permanente destruye posicionamiento acumulado. Y en un directorio poblado por carga masiva se corrigen nombres mal escritos durante meses.
 
+## 2.12 Establecimiento (Facility)
+
+Un lugar con identidad propia ante el paciente donde atienden médicos: **hospital, clínica, centro médico o centro de salud**. Puede ser **público, privado o mixto**.
+
+**Es** dueño de una o varias **sedes** (ubicaciones), todas en su mismo país. **No es** una cuenta de usuario: en esta fase no hay nadie "de la clínica" que inicie sesión. Lo gestiona el administrador.
+
+**Los médicos de un establecimiento no se registran aparte: se derivan.** Un médico es del establecimiento si atiende en alguna de sus sedes. Se descartó una relación médico–establecimiento independiente porque crearía dos fuentes de verdad que acabarían contradiciéndose. **Coste aceptado:** no se puede representar a un médico "afiliado" a un hospital sin consultorio en él.
+
+Pertenece a un país, igual que el Doctor, porque su futura dirección web lo exige y porque sus sedes y su red son de ese país.
+
+**Criterio operativo:** si cada sede tiene identidad propia ante el paciente ("Hospital CIMA San José", "Hospital CIMA Guanacaste"), se registran como establecimientos distintos de la misma red. Si es una marca con sucursales, es un establecimiento con varias sedes.
+
+Tiene su propio ciclo de **publicación**, con una puerta mínima: al menos una sede activa y un contacto público. Tendrá una página propia en una fase posterior, y por eso el modelo ya incluye su dirección web, su descripción y su logo.
+
+Tiene contactos propios (central, emergencias, citas), generales o de una sede, con la misma lógica que los del Doctor.
+
+## 2.13 Red (FacilityNetwork)
+
+La institución que opera un conjunto de establecimientos: la CCSS en Costa Rica, el IGSS o el MSPAS en Guatemala, el SNS en República Dominicana, el IVSS en Venezuela, o un grupo hospitalario privado.
+
+Existe porque con el sector público/privado no se puede responder "todos los hospitales de la CCSS", y en LATAM esa pregunta describe una parte enorme de la atención. Es opcional: una clínica independiente no pertenece a ninguna red.
+
+## 2.14 Aseguradora (Insurer)
+
+Una compañía o institución que cubre la atención médica: privada (BMI, Pan-American Life, ARS Humano, Universal) o pública (SeNaSa).
+
+- **Pertenece a un país.** Una multinacional tiene una red de médicos distinta en cada país, así que es una aseguradora por país.
+- **Un médico atiende por varias aseguradoras, y un establecimiento tiene convenio con varias.** Las dos relaciones son independientes: que el hospital tenga convenio con BMI no significa que todos sus médicos atiendan por BMI.
+- **Solo aseguradora, sin planes.** Los planes cambian cada año y hoy no hay quién los mantenga al día. Será posible cuando el médico gestione su ficha tras el claim.
+- **El seguro va por médico, no por médico y sede.** Es una simplificación consciente (ver `MODULO-ESTABLECIMIENTOS-SEGUROS.md` §5.6).
+
+La seguridad social puede aparecer dos veces, como Red y como Aseguradora, porque cumple los dos papeles. Cada país decide si la registra como aseguradora.
+
 ---
 
 # 3. Relaciones
 
 ```
-Country 1 ── N Region 1 ── N City 1 ── N Location
-                                            │
-                                            │ N:N
-                                            │
+Country 1 ── N Region 1 ── N City 1 ── N Location ── N:0..1 ── Facility
+                                            │                     │
+                                            │ N:N                 ├── 0..1 ── FacilityNetwork
+                                            │                     ├── 1:N ── FacilityContact
+                                            │                     └── N:N ── Insurer
 Country 1 ── N Doctor ─── 1:1 ── DoctorProfile
                  │
                  ├── N:N ── Specialty        (una principal como máximo)
                  ├── N:N ── Language
                  ├── N:N ── Location         (una principal como máximo)
+                 ├── N:N ── Insurer          (del país del médico)
                  ├── 1:N ── Contact          (una principal por tipo)
                  ├── 1:N ── ExternalReference
                  └── 0..1 ── merged_into ──> Doctor
+
+Country 1 ── N Facility, FacilityNetwork, Insurer
+Doctor ⇢ Facility: derivada, a través de Location
 ```
 
 ---
@@ -206,6 +248,9 @@ Reglas que el modelo garantiza siempre. Las que la base de datos no puede impone
 6. Una ficha suprimida no vuelve a crearse ni a publicarse mientras la supresión esté vigente.
 7. Una ficha fusionada no se borra: queda apuntando a la superviviente, y su dirección web sigue resolviendo.
 8. La cadena ciudad → región → país es siempre consistente.
+9. Las sedes y la red de un establecimiento son de su mismo país. Las aseguradoras de un médico o de un establecimiento, también.
+10. Una ubicación pertenece como máximo a un establecimiento, y solo cambia de establecimiento con una acción explícita.
+11. Tener establecimiento o aseguradora **no** es requisito para publicar un Doctor.
 
 ---
 
@@ -273,7 +318,9 @@ Consecuencias en el modelo:
 | Alias para ciudades y especialidades | El mapeo de texto libre a catálogo es el grueso del esfuerzo de importación; los alias hacen que cada lote cueste menos que el anterior |
 | Contacto como entidad, no como atributo | Es la propuesta de valor de Fase 1 y el enganche de la futura membresía |
 | Idioma como relación | Es un filtro del producto |
-| Ubicación compartible | La torre médica es la realidad; la clínica llegará después a poseerla |
+| Ubicación compartible | La torre médica es la realidad; el establecimiento la posee |
+| Médicos del establecimiento derivados de sus sedes | Una sola fuente de verdad; una relación aparte acabaría contradiciéndose |
+| Aseguradora por país y sin planes | Cada país tiene su red; los planes no tienen quién los mantenga hasta el claim |
 | Referencias externas múltiples | La fusión obliga a heredar las de ambas fichas |
 | Zona intermedia de importación | Sin colegiado universal, la carga masiva necesita intervención humana, y la intervención necesita estado |
 | Lista de supresión | Sin ella, la siguiente importación recrea la ficha retirada |
@@ -289,7 +336,10 @@ Consecuencias en el modelo:
 | Reserva y disponibilidad | 3 | Cuelgan de Doctor y Location. Hará falta zona horaria |
 | Review y reputación | 3 | Entidad nueva. Nunca un promedio dentro de Doctor |
 | Membresía y pagos | 3 | Cadena Doctor → Suscripción → Plan. La visibilidad del contacto ya tiene su marca |
-| Clínica | V2 | Una ubicación ya puede ser de tipo clínica sin que la entidad exista. La relación pasará a Doctor → Clínica → Ubicación |
+| Establecimiento: landing pública | Frontend | Slug, descripción, logo y estado ya existen (§2.12) |
+| Establecimientos y aseguradoras: importación | Importación | Alias al estilo de ciudades y especialidades. Fusión de establecimientos duplicados |
+| Planes de seguro | Tras el claim | Cuelgan de Aseguradora |
+| Cuentas de clínica, gestión de plantilla | V2 | El Establecimiento ya existe; falta el actor "gestor de clínica" (`modelo-identidad.md`) |
 | Asistente o secretaria | V2 | Ver el bloqueo conocido en `modelo-identidad.md` |
 | Telemedicina, receta, historia clínica | V2+ | Sin enganche todavía. No modelar |
 

@@ -7,6 +7,7 @@ use App\Domain\Directory\Enums\LocationStatus;
 use App\Domain\Directory\Enums\LocationType;
 use App\Domain\Directory\Support\LocationSearch;
 use App\Filament\Resources\Doctors\RelationManagers\Concerns\ChangesDoctorAggregate;
+use App\Filament\Resources\Facilities\FacilityResource;
 use App\Filament\Resources\Locations\LocationResource;
 use App\Filament\Resources\Locations\Schemas\LocationForm;
 use App\Models\Location;
@@ -40,12 +41,15 @@ class LocationsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('address')
-            ->modifyQueryUsing(fn (Builder $query) => $query->with('city:id,name')->withCount('doctors'))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['city:id,name', 'facility:id,name'])->withCount('doctors'))
             ->defaultSort('doctor_locations.is_primary', 'desc')
             ->columns([
                 TextColumn::make('address')->label('Dirección')
                     ->description(fn (Location $record) => $record->name),
                 TextColumn::make('city.name')->label('Ciudad'),
+                TextColumn::make('facility.name')->label('Establecimiento')
+                    ->url(fn (Location $record) => $record->facility_id ? FacilityResource::getUrl('edit', ['record' => $record->facility_id]) : null)
+                    ->placeholder('—'),
                 TextColumn::make('pivot.location_type')->label('Tipo')
                     ->formatStateUsing(fn (?string $state) => $state ? LocationType::from($state)->getLabel() : '—'),
                 IconColumn::make('pivot.is_primary')->label('Principal')->boolean()
@@ -143,8 +147,9 @@ class LocationsRelationManager extends RelationManager
      */
     private static function locationOptions(Builder $query): array
     {
-        return $query->with(['city:id,name', 'country:id,name'])->get()
-            ->mapWithKeys(fn (Location $l) => [$l->id => trim("{$l->name} · {$l->address} ({$l->city->name}, {$l->country->name})", ' ·')])
+        return $query->with(['city:id,name', 'country:id,name', 'facility:id,name'])->get()
+            ->mapWithKeys(fn (Location $l) => [$l->id => trim("{$l->name} · {$l->address} ({$l->city->name}, {$l->country->name})", ' ·')
+                .($l->facility ? " — sede de {$l->facility->name}" : '')])
             ->all();
     }
 

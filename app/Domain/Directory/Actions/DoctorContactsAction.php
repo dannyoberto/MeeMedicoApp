@@ -4,7 +4,7 @@ namespace App\Domain\Directory\Actions;
 
 use App\Domain\Directory\Enums\ContactSource;
 use App\Domain\Directory\Enums\ContactType;
-use App\Domain\Directory\Support\PhoneNormalizer;
+use App\Domain\Directory\Support\ContactNormalizer;
 use App\Domain\Directory\Support\SuppressionCheck;
 use App\Models\Doctor;
 use App\Models\DoctorContact;
@@ -20,8 +20,6 @@ use function Illuminate\Support\enum_value;
  */
 class DoctorContactsAction
 {
-    private const PHONE_TYPES = [ContactType::Phone, ContactType::Mobile, ContactType::Whatsapp];
-
     /**
      * @param  array{type: string, value: string, label?: ?string, location_id?: ?string, is_public?: bool, is_primary?: bool}  $data
      *
@@ -42,7 +40,7 @@ class DoctorContactsAction
         // Solo un valor nuevo: el que ya estaba lo resuelve la puerta de publicación.
         $suppressed = match (true) {
             $contact?->value_normalized === $normalized => null,
-            in_array($type, self::PHONE_TYPES, true) => SuppressionCheck::strongMatch($doctor->country_id, null, [$normalized]),
+            in_array($type, ContactNormalizer::PHONE_TYPES, true) => SuppressionCheck::strongMatch($doctor->country_id, null, [$normalized]),
             $type === ContactType::Email => SuppressionCheck::strongMatch($doctor->country_id, null, [], [$normalized]),
             default => null,
         };
@@ -124,38 +122,12 @@ class DoctorContactsAction
 
     private function normalize(Doctor $doctor, ContactType $type, string $value, ?string $locationId): string
     {
-        $value = trim($value);
+        // El país del teléfono es el de su ubicación (consulta en otro país) o el del médico.
+        $country = $locationId
+            ? $doctor->locations()->whereKey($locationId)->first()?->country?->code
+            : null;
+        $country ??= $doctor->country()->value('code');
 
-        if (in_array($type, self::PHONE_TYPES, true)) {
-            // El país del teléfono es el de su ubicación (consulta en otro país) o el del médico.
-            $country = $locationId
-                ? $doctor->locations()->whereKey($locationId)->first()?->country?->code
-                : null;
-            $country ??= $doctor->country()->value('code');
-
-            return PhoneNormalizer::toE164($value, $country)
-                ?? throw ValidationException::withMessages(['value' => "No es un teléfono válido de {$country}."]);
-        }
-
-        if ($type === ContactType::Email) {
-            $email = mb_strtolower($value);
-            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                throw ValidationException::withMessages(['value' => 'No es un correo válido.']);
-            }
-
-            return $email;
-        }
-
-        // Sitio web: esquema obligatorio y host en minúsculas.
-        $url = preg_match('#^https?://#i', $value) ? $value : "https://{$value}";
-        $parts = parse_url($url);
-        if (! filter_var($url, FILTER_VALIDATE_URL) || empty($parts['host']) || ! str_contains($parts['host'], '.')) {
-            throw ValidationException::withMessages(['value' => 'No es una dirección web válida.']);
-        }
-
-        return strtolower($parts['scheme']).'://'.strtolower($parts['host'])
-            .(isset($parts['port']) ? ':'.$parts['port'] : '')
-            .rtrim($parts['path'] ?? '', '/')
-            .(isset($parts['query']) ? '?'.$parts['query'] : '');
+        return ContactNormalizer::normalize($type, $value, $country);
     }
 }

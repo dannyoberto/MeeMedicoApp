@@ -1,5 +1,7 @@
 <?php
 
+use App\Domain\Directory\Enums\ContactType;
+use App\Domain\Directory\Enums\FacilitySector;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
@@ -52,12 +54,12 @@ describe('tipos y convenciones', function () {
         expect(DB::scalar("select count(*) from pg_type t join pg_namespace n on n.oid = t.typnamespace where n.nspname = 'public' and t.typtype = 'e'"))->toBe(0);
     });
 
-    it('existen las 27 tablas propias más activity_log', function () {
+    it('existen las 33 tablas propias más activity_log', function () {
         $infra = ['migrations', 'password_reset_tokens', 'sessions', 'jobs', 'job_batches', 'failed_jobs', 'cache', 'cache_locks', 'personal_access_tokens', 'notifications'];
         $own = collect(DB::select("select table_name from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE'"))
             ->pluck('table_name')->diff($infra);
 
-        expect($own)->toHaveCount(28);
+        expect($own)->toHaveCount(34);
     });
 
     it('es_unaccent iguala acentos y aplica stemming español', function () {
@@ -152,6 +154,71 @@ describe('geografía', function () {
             'address' => 'x', 'address_normalized' => 'x', 'latitude' => 9.9,
         ]));
     });
+});
+
+describe('establecimientos y seguros', function () {
+    beforeEach(function () {
+        $this->insertFacility = function (string $id, array $attrs = []) {
+            DB::table('facilities')->insert([
+                'id' => $id, 'country_id' => $this->cr, 'name' => 'Hospital X', 'slug' => strtolower($id),
+                'type' => 'hospital', 'sector' => 'private', ...$attrs,
+            ]);
+        };
+    });
+
+    it('una sede no puede pertenecer a un establecimiento de otro país', function () {
+        ($this->insertFacility)(ulid('F1'), ['country_id' => $this->gt]);
+
+        violates('locations_facility_country_fk', fn () => DB::table('locations')->insert([
+            'id' => ulid('P1'), 'facility_id' => ulid('F1'), 'country_id' => $this->cr, 'region_id' => $this->city->region_id,
+            'city_id' => $this->city->id, 'address' => 'x', 'address_normalized' => 'x',
+        ]));
+    });
+
+    it('un establecimiento no puede pertenecer a una red de otro país', function () {
+        DB::table('facility_networks')->insert(['id' => ulid('N1'), 'country_id' => $this->gt, 'name' => 'IGSS', 'sector' => 'public']);
+
+        violates('facilities_network_country_fk', fn () => ($this->insertFacility)(ulid('F1'), ['network_id' => ulid('N1')]));
+    });
+
+    it('el slug de establecimiento es único por país, pero se repite entre países', function () {
+        ($this->insertFacility)(ulid('F1'), ['slug' => 'hospital-mexico']);
+        ($this->insertFacility)(ulid('F2'), ['slug' => 'hospital-mexico', 'country_id' => $this->gt]);
+
+        violates('facilities_country_slug_uniq', fn () => ($this->insertFacility)(ulid('F3'), ['slug' => 'hospital-mexico', 'type' => 'clinic']));
+    });
+
+    it('un solo contacto principal por tipo y establecimiento', function () {
+        ($this->insertFacility)(ulid('F1'));
+        DB::table('facility_contacts')->insert(['id' => ulid('K1'), 'facility_id' => ulid('F1'), 'type' => 'phone', 'value' => 'a', 'value_normalized' => '+1', 'is_primary' => true]);
+
+        violates('facility_contacts_one_primary_uniq', fn () => DB::table('facility_contacts')->insert(['id' => ulid('K2'), 'facility_id' => ulid('F1'), 'type' => 'phone', 'value' => 'b', 'value_normalized' => '+2', 'is_primary' => true]));
+    });
+
+    it('el slug de aseguradora es único por país', function () {
+        $row = fn (string $id, string $country) => ['id' => ulid($id), 'country_id' => $country, 'name' => 'BMI', 'slug' => 'bmi', 'type' => 'private'];
+        DB::table('insurers')->insert([$row('A1', $this->cr), $row('A2', $this->gt)]);
+
+        violates('insurers_country_slug_uniq', fn () => DB::table('insurers')->insert($row('A3', $this->cr)));
+    });
+
+    it('slug_redirects admite establecimientos y aseguradoras, y rechaza entidades desconocidas', function () {
+        $row = fn (string $id, string $type) => ['id' => ulid($id), 'entity_type' => $type, 'entity_id' => ulid('E1'), 'country_id' => $this->cr, 'old_slug' => "viejo-{$type}"];
+        DB::table('slug_redirects')->insert([$row('R1', 'facility'), $row('R2', 'insurer')]);
+
+        violates('slug_redirects_entity_chk', fn () => DB::table('slug_redirects')->insert($row('R3', 'clinic')));
+    });
+
+    it('los CHECK que comparten enum coinciden con él', function (string $check, string $enum) {
+        $definition = DB::scalar('select pg_get_constraintdef(oid) from pg_constraint where conname = ?', [$check]);
+        preg_match_all("/'([a-z_]+)'::/", $definition, $matches);
+
+        expect(collect($matches[1])->sort()->values()->all())
+            ->toBe(collect($enum::cases())->map(fn ($case) => $case->value)->sort()->values()->all());
+    })->with([
+        ['facility_networks_sector_chk', FacilitySector::class],
+        ['facility_contacts_type_chk', ContactType::class],
+    ]);
 });
 
 describe('supresiones', function () {

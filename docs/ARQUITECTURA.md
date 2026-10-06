@@ -459,7 +459,8 @@ La arquitectura elegida está orientada a que el equipo dedique su tiempo a esos
 
 | Documento | Contenido |
 |---|---|
-| `database.md — Fase 1` | Esquema completo: 27 tablas, índices, restricciones, orden de migraciones, pipeline de importación |
+| `database.md — Fase 1` | Esquema completo: 33 tablas, índices, restricciones, orden de migraciones, pipeline de importación |
+| `MODULO-ESTABLECIMIENTOS-SEGUROS.md` | Establecimientos y aseguradoras en el backoffice (alcance ampliado en octubre de 2026). No cambia el stack |
 | Modelo de Dominio — Directorio Médico Básico | Conceptos del dominio médico *(pendiente de actualizar a v2.0)* |
 | Modelo de Identidad y Administración | Actores, roles, reglas de autorización *(pendiente de actualizar a v2.0)* |
 | `PermissionSeeder.php` | **Lista canónica de permisos.** Los documentos la referencian, no la copian |

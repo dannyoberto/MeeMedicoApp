@@ -19,14 +19,16 @@ class EditLocation extends EditRecord
 
     /**
      * Aviso de ubicación compartida (MODELO-DOMINIO.md §2.4): editarla cambia la ficha de todos.
+     * Si es sede de un establecimiento, se dice de cuál: la dirección le pertenece.
      */
     public function getSubheading(): ?string
     {
         $doctors = $this->record->doctors()->count();
 
-        return $doctors > 1
-            ? "Compartida por {$doctors} médicos: los cambios se verán en todas sus fichas."
-            : null;
+        return collect([
+            $this->record->facility ? "Sede de {$this->record->facility->name}." : null,
+            $doctors > 1 ? "Compartida por {$doctors} médicos: los cambios se verán en todas sus fichas." : null,
+        ])->filter()->implode(' ') ?: null;
     }
 
     protected function getHeaderActions(): array

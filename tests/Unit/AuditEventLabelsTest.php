@@ -20,7 +20,7 @@ it('todo evento que registra el código tiene nombre en el backoffice', function
         }
 
         // Los eventos son "entidad.accion" en singular; config('import.x') no lo es.
-        preg_match_all("/(?<!config\\()'((?:doctor|import|slug|location|catalog|user|role|suppression|claim)\\.[a-z_]+)'/", $source, $matches);
+        preg_match_all("/(?<!config\\()'((?:doctor|facility|import|slug|location|catalog|user|role|suppression|claim)\\.[a-z_]+)'/", $source, $matches);
         $events = [...$events, ...$matches[1]];
     }
 

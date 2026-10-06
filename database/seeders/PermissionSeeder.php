@@ -38,6 +38,11 @@ class PermissionSeeder extends Seeder
 
         'contacts.view', 'contacts.update',
 
+        // establecimientos y seguros (MODULO-ESTABLECIMIENTOS-SEGUROS.md)
+        'facilities.view', 'facilities.create', 'facilities.update', 'facilities.delete',
+        'facilities.publish', 'networks.manage',
+        'insurers.view', 'insurers.create', 'insurers.update', 'insurers.delete',
+
         'claims.view', 'claims.approve', 'claims.reject',
 
         'imports.view', 'imports.create', 'imports.resolve', 'imports.apply',

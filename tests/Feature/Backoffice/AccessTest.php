@@ -26,6 +26,7 @@ it('el admin ve cada sección y un usuario médico recibe 403', function (string
     $this->actingAs($doctor)->get(panel($path))->assertForbidden();
 })->with([
     '/', '/doctors', '/doctors/create', '/locations', '/locations/create',
+    '/facilities', '/facilities/create', '/facility-networks',
     '/specialties', '/countries', '/regions', '/cities', '/languages',
     '/users', '/users/create', '/roles', '/activities',
     '/doctor-suppressions', '/doctor-suppressions/create',
@@ -50,4 +51,5 @@ it('las páginas de ficha y detalle cargan con datos', function () {
 
     $this->actingAs($admin)->get(panel("/doctors/{$doctor->id}/edit"))->assertOk()->assertSee('Requisitos para publicar');
     $this->actingAs($admin)->get(panel('/locations/'.$doctor->locations()->first()->id.'/edit'))->assertOk();
+    $this->actingAs($admin)->get(panel('/facilities/'.activeFacility()->id.'/edit'))->assertOk()->assertSee('Requisitos para activar');
 });

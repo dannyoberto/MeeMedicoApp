@@ -8,6 +8,7 @@ use Filament\Support\Icons\Heroicon;
 
 /**
  * Valores: deben coincidir con el CHECK doctor_contacts_type_chk (DATABASE.md).
+ * También lo usa facility_contacts.type, cuyo CHECK se prueba aparte en SchemaConstraintsTest.
  * Etiqueta, tono e icono: design-system.md §8 (el tono usa el vocabulario de Filament).
  */
 enum ContactType: string implements HasIcon, HasLabel

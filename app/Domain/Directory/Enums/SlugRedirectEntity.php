@@ -14,6 +14,8 @@ enum SlugRedirectEntity: string implements HasLabel
     case Specialty = 'specialty';
     case City = 'city';
     case Region = 'region';
+    case Facility = 'facility';
+    case Insurer = 'insurer';
 
     public function getLabel(): string
     {
@@ -22,6 +24,8 @@ enum SlugRedirectEntity: string implements HasLabel
             self::Specialty => 'Especialidad',
             self::City => 'Ciudad',
             self::Region => 'Región',
+            self::Facility => 'Establecimiento',
+            self::Insurer => 'Aseguradora',
         };
     }
 }

@@ -6,6 +6,7 @@ use App\Domain\Directory\Enums\LocationStatus;
 use App\Domain\Directory\Enums\LocationType;
 use App\Domain\Directory\Support\LocationSearch;
 use App\Filament\Actions\ToggleStatusAction;
+use App\Filament\Resources\Facilities\FacilityResource;
 use App\Models\Location;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
@@ -24,7 +25,7 @@ class LocationsTable
     {
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query
-                ->with(['city:id,name', 'country:id,name'])
+                ->with(['city:id,name', 'country:id,name', 'facility:id,name'])
                 ->withCount(['doctors', ...self::typeCounts()]))
             ->splitSearchTerms(false)
             ->persistFiltersInSession()
@@ -34,6 +35,10 @@ class LocationsTable
                     ->label('Dirección')
                     ->description(fn (Location $record) => $record->name)
                     ->searchable(query: fn (Builder $query, string $search) => LocationSearch::apply($query, $search)),
+                TextColumn::make('facility.name')
+                    ->label('Establecimiento')
+                    ->url(fn (Location $record) => $record->facility_id ? FacilityResource::getUrl('edit', ['record' => $record->facility_id]) : null)
+                    ->placeholder('—'),
                 TextColumn::make('city.name')->label('Ciudad')->sortable(),
                 TextColumn::make('country.name')->label('País'),
                 TextColumn::make('types')
@@ -56,6 +61,7 @@ class LocationsTable
             ->filters([
                 SelectFilter::make('country_id')->label('País')->relationship('country', 'name'),
                 SelectFilter::make('city_id')->label('Ciudad')->relationship('city', 'name')->searchable(),
+                SelectFilter::make('facility_id')->label('Establecimiento')->relationship('facility', 'name')->searchable(),
                 SelectFilter::make('location_type')
                     ->label('Tipo')
                     ->options(LocationType::class)

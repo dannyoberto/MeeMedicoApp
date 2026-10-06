@@ -131,6 +131,15 @@ class Doctor extends Model
             ->withPivot('location_type', 'is_primary', 'created_at');
     }
 
+    /**
+     * Aseguradoras por las que atiende, siempre de su país (DoctorInsurersAction).
+     */
+    public function insurers(): BelongsToMany
+    {
+        return $this->belongsToMany(Insurer::class, 'doctor_insurers')
+            ->withPivot('created_at');
+    }
+
     public function contacts(): HasMany
     {
         return $this->hasMany(DoctorContact::class);

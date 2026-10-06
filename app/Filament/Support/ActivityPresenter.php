@@ -4,11 +4,14 @@ namespace App\Filament\Support;
 
 use App\Domain\Directory\Enums\ContactType;
 use App\Domain\Directory\Enums\DoctorGender;
+use App\Domain\Directory\Enums\FacilitySector;
+use App\Domain\Directory\Enums\FacilityType;
 use App\Domain\Directory\Enums\LicenseSource;
 use App\Domain\Directory\Enums\LocationType;
 use App\Domain\Directory\Enums\VerificationSource;
 use App\Domain\Directory\Enums\VerificationStatus;
 use App\Domain\Import\Enums\ImportResolution;
+use App\Models\FacilityNetwork;
 use Spatie\Activitylog\Models\Activity;
 
 /**
@@ -32,6 +35,10 @@ final class ActivityPresenter
         'doctor.suspended' => 'Ficha suspendida',
         'doctor.suspension_lifted' => 'Suspensión levantada',
         'doctor.merged' => 'Fichas fusionadas',
+        'facility.created' => 'Establecimiento creado',
+        'facility.updated' => 'Establecimiento modificado',
+        'facility.published' => 'Establecimiento activado',
+        'facility.unpublished' => 'Establecimiento desactivado',
         'slug.updated' => 'Slug cambiado',
         'location.updated' => 'Ubicación modificada',
         'catalog.activated' => 'Activado',
@@ -52,12 +59,17 @@ final class ActivityPresenter
         'suppression.revoked' => 'Supresión revocada',
     ];
 
-    /** Partes del agregado del médico (DoctorAggregateChange). */
+    /** Partes del agregado del médico (DoctorAggregateChange) y del establecimiento (FacilityAggregateChange). */
     private const PARTS = [
         'specialties' => 'Especialidades',
         'locations' => 'Ubicaciones',
         'contacts' => 'Contactos',
         'languages' => 'Idiomas',
+    ];
+
+    /** En un establecimiento, sus ubicaciones son sus sedes. */
+    private const FACILITY_PARTS = [
+        'locations' => 'Sedes',
     ];
 
     private const OPERATIONS = [
@@ -70,6 +82,9 @@ final class ActivityPresenter
         'updated' => 'modificar',
         'primary' => 'marcar como principal',
         'type' => 'cambiar tipo',
+        'assigned' => 'asignar existente',
+        'moved_in' => 'traer de otro establecimiento',
+        'moved_out' => 'pasar a otro establecimiento',
     ];
 
     private const FIELDS = [
@@ -90,11 +105,16 @@ final class ActivityPresenter
         'profile.experience' => 'Experiencia',
         'address' => 'Dirección',
         'address_2' => 'Complemento',
-        'name' => 'Nombre del lugar',
+        'name' => 'Nombre',
         'city_id' => 'Ciudad',
         'postal_code' => 'Código postal',
         'latitude' => 'Latitud',
         'longitude' => 'Longitud',
+        'type' => 'Tipo',
+        'sector' => 'Sector',
+        'network_id' => 'Red',
+        'description' => 'Descripción',
+        'logo_path' => 'Logo',
     ];
 
     public static function eventLabel(?string $event): string
@@ -116,7 +136,9 @@ final class ActivityPresenter
                 default => $p['specialty'] ?? $p['language'] ?? null,
             };
 
-            return (self::PARTS[$p['part']] ?? $p['part']).': '.(self::OPERATIONS[$p['op'] ?? ''] ?? ($p['op'] ?? 'cambio'))
+            $parts = str_starts_with((string) $activity->event, 'facility.') ? [...self::PARTS, ...self::FACILITY_PARTS] : self::PARTS;
+
+            return ($parts[$p['part']] ?? $p['part']).': '.(self::OPERATIONS[$p['op'] ?? ''] ?? ($p['op'] ?? 'cambio'))
                 .($detail ? " ({$detail})" : '');
         }
 
@@ -170,6 +192,10 @@ final class ActivityPresenter
             'license_source' => LicenseSource::tryFrom((string) $value)?->getLabel(),
             'verification_status' => VerificationStatus::tryFrom((string) $value)?->getLabel(),
             'verification_source' => VerificationSource::tryFrom((string) $value)?->getLabel(),
+            // 'type' solo aparece en attribute_changes de establecimientos.
+            'type' => FacilityType::tryFrom((string) $value)?->getLabel(),
+            'sector' => FacilitySector::tryFrom((string) $value)?->getLabel(),
+            'network_id' => FacilityNetwork::whereKey($value)->value('name'),
             default => null,
         };
 

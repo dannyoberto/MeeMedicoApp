@@ -61,6 +61,8 @@ class ActivityResource extends Resource
         'App\Models\Region' => 'Región',
         'App\Models\City' => 'Ciudad',
         'App\Models\Location' => 'Ubicación',
+        'App\Models\Facility' => 'Establecimiento',
+        'App\Models\FacilityNetwork' => 'Red',
         'App\Models\Language' => 'Idioma',
         'App\Models\ImportBatch' => 'Lote de importación',
         'App\Models\ImportRow' => 'Fila de importación',

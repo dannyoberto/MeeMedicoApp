@@ -79,7 +79,9 @@ Eloquent ya es la capa de acceso a datos. Añadirlo solo introduce ceremonia.
 
 ### 7. Disciplina de fases
 
-No implementes funcionalidad de fases futuras aunque sea técnicamente posible: telemedicina, historia clínica, CRM, IA diagnóstica, marketplace farmacéutico, app nativa, reservas, disponibilidad, reviews, suscripciones, pacientes, clínicas, asistentes.
+No implementes funcionalidad de fases futuras aunque sea técnicamente posible: telemedicina, historia clínica, CRM, IA diagnóstica, marketplace farmacéutico, app nativa, reservas, disponibilidad, reviews, suscripciones, pacientes, cuentas de clínica, planes de seguro, asistentes.
+
+Establecimientos (clínicas, hospitales) y aseguradoras **sí** son Fase 1, pero solo como datos del backoffice. Su alcance exacto está en `docs/MODULO-ESTABLECIMIENTOS-SEGUROS.md` §2.
 
 Si una idea pertenece a una fase posterior, dilo y explica cómo dejar la arquitectura preparada sin implementarla.
 
@@ -170,7 +172,8 @@ Para decisiones de peso, estructura la respuesta así: contexto, opciones, venta
 | Archivo | Contenido |
 |---|---|
 | `docs/ARQUITECTURA.md` | Decisiones de stack, alternativas descartadas, infraestructura, riesgos |
-| `docs/DATABASE.md` | 27 tablas, índices, restricciones, orden de migraciones, pipeline de import |
+| `docs/DATABASE.md` | 33 tablas, índices, restricciones, orden de migraciones, pipeline de import |
+| `docs/MODULO-ESTABLECIMIENTOS-SEGUROS.md` | Establecimientos y aseguradoras: alcance, referencias de otras plataformas, decisiones, pantallas, plan por etapas |
 | `docs/MODELO-DOMINIO.md` | Conceptos del dominio médico |
 | `docs/MODELO-IDENTIDAD.md` | Actores, roles, reglas de autorización |
 
