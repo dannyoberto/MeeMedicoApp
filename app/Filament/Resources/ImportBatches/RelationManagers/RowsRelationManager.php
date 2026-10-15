@@ -106,25 +106,32 @@ class RowsRelationManager extends RelationManager
             // Solo mientras corre una etapa: un lote en revisión no cambia solo.
             ->poll(fn () => $this->batch()->refresh()->status->isRunning() ? '10s' : null)
             ->persistFiltersInSession()
+            // La fila entera abre la revisión: es una cola, y la fila es el blanco más grande.
+            ->recordAction('details')
             ->columns([
                 TextColumn::make('row_number')->label('Fila')->sortable(),
-                TextColumn::make('doctor_ref')->label('ID del médico')
-                    ->state(fn (ImportRow $r) => $r->raw_payload['doctor_ref'] ?? '—'),
+                // El ID del archivo y el colegiado van bajo el nombre: la tabla cabe sin
+                // scroll horizontal y "Coincidencia" y las acciones quedan a la vista.
                 TextColumn::make('name')->label('Médico')
                     ->state(fn (ImportRow $r) => trim(($r->n_first_name ?? $r->raw_payload['first_name'] ?? '').' '.($r->n_last_name ?? $r->raw_payload['last_name'] ?? '')) ?: '—')
-                    ->description(fn (ImportRow $r) => $r->raw_payload['license_number'] ?? null),
+                    ->description(fn (ImportRow $r) => collect([$r->raw_payload['doctor_ref'] ?? null, $r->raw_payload['license_number'] ?? null])
+                        ->filter()->implode(' · ') ?: null),
                 TextColumn::make('city')->label('Ciudad (archivo)')
                     ->state(fn (ImportRow $r) => $r->raw_payload['city'] ?? '—')
-                    ->description(fn (ImportRow $r) => $r->raw_payload['address'] ?? null),
+                    ->description(fn (ImportRow $r) => Str::limit($r->raw_payload['address'] ?? '', 32) ?: null)
+                    ->tooltip(fn (ImportRow $r) => Str::length($r->raw_payload['address'] ?? '') > 32 ? $r->raw_payload['address'] : null)
+                    ->visibleFrom('md'),
                 TextColumn::make('status')->label('Estado')->badge(),
                 TextColumn::make('match_type')->label('Coincidencia')->badge()
                     ->color(fn (ImportRow $r) => $r->match_confidence?->getColor() ?? 'gray')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->visibleFrom('lg'),
                 TextColumn::make('issues')->label('Incidencias')->wrap()
                     ->state(fn (ImportRow $r) => collect($r->validation_errors ?? [])->pluck('message')->implode(' · ') ?: null)
                     ->color(fn (ImportRow $r) => collect($r->validation_errors ?? [])->contains('level', RowIssue::ERROR) ? 'danger' : 'gray')
                     ->placeholder('—'),
-                TextColumn::make('appliedDoctor.slug')->label('Ficha')->placeholder('—')->toggleable(),
+                TextColumn::make('appliedDoctor.slug')->label('Ficha')->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')->label('Estado')->options(ImportRowStatus::class),

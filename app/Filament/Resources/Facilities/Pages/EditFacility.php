@@ -20,6 +20,9 @@ class EditFacility extends EditRecord
 {
     protected static string $resource = FacilityResource::class;
 
+    /** Como en EditDoctor: las pestañas de abajo guardan al instante; el formulario, con la barra. */
+    public static bool $formActionsAreSticky = true;
+
     public function getTitle(): string|Htmlable
     {
         return $this->record->name;

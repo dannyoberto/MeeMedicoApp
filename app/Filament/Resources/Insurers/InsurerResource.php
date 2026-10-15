@@ -23,7 +23,8 @@ class InsurerResource extends Resource
 {
     protected static ?string $model = Insurer::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShieldCheck;
+    // El escudo con check significa "verificado" (design-system.md D3): aquí no.
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBriefcase;
 
     protected static string|UnitEnum|null $navigationGroup = 'Directorio';
 

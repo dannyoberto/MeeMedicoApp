@@ -19,7 +19,7 @@ class RegionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedMap;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Plataforma';
+    protected static string|UnitEnum|null $navigationGroup = 'Catálogos';
 
     protected static ?int $navigationSort = 50;
 

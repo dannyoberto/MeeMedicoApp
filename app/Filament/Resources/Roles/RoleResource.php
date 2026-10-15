@@ -25,7 +25,8 @@ class RoleResource extends Resource
 {
     protected static ?string $model = Role::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShieldCheck;
+    // El escudo con check significa "verificado" (design-system.md D3): aquí no.
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedKey;
 
     protected static string|UnitEnum|null $navigationGroup = 'Plataforma';
 
@@ -90,6 +91,8 @@ class RoleResource extends Resource
             ->columns([
                 TextColumn::make('name')
                     ->label('Rol')
+                    ->formatStateUsing(fn (string $state) => Role::labelFor($state))
+                    ->description(fn (Role $record) => $record->name)
                     ->badge()
                     ->color('primary'),
                 TextColumn::make('users_count')

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Domain\Directory\Cdn\CdnPurger;
+use App\Filament\Support\PanelDefaults;
 use App\Policies\ActivityPolicy;
 use Filament\Support\Facades\FilamentTimezone;
 use Illuminate\Support\Facades\Gate;
@@ -29,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Solo presentación: Filament convierte desde UTC al mostrar y de vuelta al guardar.
         FilamentTimezone::set(config('app.display_timezone'));
+        PanelDefaults::register();
 
         // El modelo de auditoría es del paquete: no entra en el descubrimiento automático.
         Gate::policy(Activity::class, ActivityPolicy::class);

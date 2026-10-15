@@ -19,9 +19,9 @@ class CityResource extends Resource
 {
     protected static ?string $model = City::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingOffice2;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingLibrary;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Plataforma';
+    protected static string|UnitEnum|null $navigationGroup = 'Catálogos';
 
     protected static ?int $navigationSort = 60;
 

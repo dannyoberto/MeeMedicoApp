@@ -101,7 +101,9 @@ final class UserActions
      */
     public static function roleOptions(): array
     {
-        return Role::orderBy('name')->pluck('name', 'name')->all();
+        return Role::orderBy('name')->pluck('name')
+            ->mapWithKeys(fn (string $name) => [$name => Role::labelFor($name)])
+            ->all();
     }
 
     /**

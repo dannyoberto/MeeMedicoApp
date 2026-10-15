@@ -44,7 +44,8 @@ enum DoctorStatus: string implements HasColor, HasIcon, HasLabel
     public function getIcon(): ?Heroicon
     {
         return match ($this) {
-            self::Draft => Heroicon::OutlinedPencilSquare,
+            // No el lápiz: es el icono de la acción Editar y el badge parecería un botón.
+            self::Draft => Heroicon::OutlinedDocument,
             self::Active => Heroicon::OutlinedGlobeAlt,
             self::Inactive => Heroicon::OutlinedEyeSlash,
             self::Suspended => Heroicon::OutlinedNoSymbol,

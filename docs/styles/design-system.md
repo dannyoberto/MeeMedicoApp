@@ -388,7 +388,7 @@ return $panel
 - **Implementación actual** (referencia visual: `docs/Backoffice · Panel (Filament con tokens MeeMedico)@1x.png`):
   - `App\Filament\Support\BrandColors` pasa a Filament las **escalas exactas** de `tokens.css`. Los tonos de estado fijan sus valores 50, 200, 600 y 800.
   - `resources/css/filament/admin/theme.css` ajusta solo clases `.fi-*`: barra lateral blanca con borde, elemento activo en `primary-50`, tarjetas y tablas con borde y sin sombra, cabecera de tabla en `gray-50`, badges con fondo 50, borde 200 y texto 800, y borde de controles con contraste ≥ 3:1.
-  - El menú tiene tres grupos: **Directorio**, **Operación** y **Plataforma**.
+  - El menú tiene cuatro grupos: **Directorio**, **Operación**, **Catálogos** (países, regiones, ciudades e idiomas; plegado por defecto) y **Plataforma** (usuarios, roles y auditoría).
   - El Panel usa la composición del mockup con métricas de Fase 1: publicados, reclamados, verificaciones y reclamaciones pendientes, reclamados por semana y médicos por país. Premium, reviews, clínicas y SEO **no** se muestran hasta su fase.
   - Los avatares son de iniciales generadas en el servidor (`InitialsAvatarProvider`). El proveedor por defecto de Filament envía los nombres de los usuarios a ui-avatars.com.
 - **Fuente:** resuelto. Filament 5 usa Inter autoalojada por defecto (`public/fonts/filament`). Llamar a `->font('Inter')` la cambiaría a Bunny Fonts (remota), así que no se llama.
@@ -431,6 +431,37 @@ Reglas que lo acompañan:
 - **Toda lista grande** tiene búsqueda sin acentos (`DoctorSearch`, `LocationSearch`), filtros que se recuerdan en la sesión y acciones en lote cuando la operación lo admite. En lote solo va lo que es seguro decidir en bloque: publicar, despublicar, crear como nuevas, descartar. Vincular, verificar o fusionar se decide de uno en uno.
 - **Los procesos en cola avisan al terminar** en la campana (notificaciones en base de datos), además de refrescar la pantalla si sigue abierta.
 - **Selects sobre catálogos grandes** (ciudades, médicos, ubicaciones) buscan en el servidor con `getSearchResultsUsing()` y definen `getOptionLabelUsing()`.
+
+### 12.5 Convenciones de presentación
+
+Se fijan una vez en `App\Filament\Support\PanelDefaults` y las comprueba `tests/Feature/Backoffice/PanelConventionsTest.php`.
+
+**Icono o texto en las acciones:**
+
+| Dónde | Forma | Motivo |
+|---|---|---|
+| Acciones de fila (Editar, Ver, Desactivar, Quitar, Hacer principal) | **Solo icono**, con el texto en tooltip y en `aria-label` | Se repiten en cada registro; con texto, una tabla de 10 filas suma 20 etiquetas. Es automático: no se configura en cada tabla. |
+| Acción de fila que es el único verbo de una cola (Revisar en Verificaciones pendientes) | Botón con texto, declarado con `->button()` | `PanelDefaults` respeta lo que pide `->button()` explícitamente. |
+| Cabecera de página (Publicar, Despublicar, Subir lote, Crear) | Icono + texto | Una o dos por página y con consecuencias. En tablet no hay tooltip. |
+| Menús (`ActionGroup`) y acciones en lote | Icono + texto | En un menú el texto es lo que se lee; el icono solo orienta. |
+| Badges de estado | Color + icono + texto | §11: el estado nunca se comunica solo con color. |
+
+Las acciones de fila que cambian datos piden confirmación, y el modal repite el verbo completo: eso compensa la ambigüedad de un icono suelto. Área de clic: 32 px con ratón (≥ 24 px, WCAG 2.5.8) y 44 px en pantallas táctiles (`theme.css`).
+
+**Iconos con significado único.** El escudo con check (`ShieldCheck`) es solo "verificado" (D3): no se usa para aseguradoras ni roles. El lápiz (`PencilSquare`) es solo la acción Editar: un badge con lápiz parece un botón. Dos entradas del menú no comparten icono.
+
+**Una acción primaria por vista.** Si hay varios pasos posibles (Aplicar y Publicar en un lote), solo el siguiente va en `primary`; el resto, en `gray`.
+
+**Tablas que caben.** A 1440 px ninguna lista necesita scroll horizontal para llegar a sus acciones. Los datos secundarios van como `description()` bajo el principal (ciudad · país, ID · colegiado) y las columnas prescindibles usan `visibleFrom()` u `isToggledHiddenByDefault`.
+
+**Textos:**
+
+- Fechas con el día primero: `14 oct. 2026` y `14 oct. 2026, 18:22`.
+- Títulos con mayúscula solo inicial ("Lotes de importación"): los recursos con etiquetas de varias palabras usan el trait `SentenceCaseLabels`.
+- Tuteo en todo el backoffice, incluidas las pantallas de acceso (`lang/vendor/filament-panels/es`).
+- Los roles se muestran con `Role::labelFor()` ("Administrador"), nunca con su nombre técnico.
+
+**Pendiente (Filament):** el icono de filtros muestra un "0" cuando no hay filtros activos. Corregirlo exige reescribir el disparador de filtros de Filament (D8), así que se espera a que lo corrija el paquete.
 
 ---
 

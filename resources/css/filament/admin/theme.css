@@ -39,6 +39,15 @@
     @apply text-xs font-medium text-gray-500 dark:text-gray-400;
 }
 
+/* Pestaña activa en oscuro: primary-400 da ~3,7:1 sobre el fondo; primary-300, ~5,9:1
+   (AA), igual que el elemento activo del menú lateral. */
+.fi-tabs-item.fi-active {
+    & .fi-tabs-item-label,
+    & > .fi-icon {
+        @apply dark:text-primary-300;
+    }
+}
+
 /* ---------- Superficies: tarjetas con borde, sin sombra ---------- */
 .fi-section {
     &:not(.fi-section-not-contained) {
@@ -60,6 +69,21 @@
 /* ---------- Tablas: cabecera en gris, texto secundario ---------- */
 .fi-ta-header-cell {
     @apply bg-gray-50 font-medium text-gray-600 dark:bg-white/5 dark:text-gray-300;
+}
+
+/* ---------- Acciones de fila: solo icono (PanelDefaults::compactRowAction) ----------
+   Filament da 32 px de área con márgenes negativos, así que dos iconos quedan pegados.
+   Ratón: un hueco entre áreas. Táctil: 44 px de área (design-system.md §11) sin solaparse. */
+.fi-ta-actions:has(> .fi-ac-icon-btn-action) {
+    @apply gap-4;
+
+    @media (pointer: coarse) {
+        @apply gap-6;
+
+        & > .fi-ac-icon-btn-action {
+            @apply relative before:absolute before:-inset-1.5 before:content-[''];
+        }
+    }
 }
 
 /* ---------- Encabezado de página ---------- */

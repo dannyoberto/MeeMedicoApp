@@ -1,8 +1,7 @@
 {{-- Nombre y rol junto al avatar del menú de usuario, como en el mockup del backoffice. --}}
 @php
     $user = filament()->auth()->user();
-    $labels = ['admin' => 'Administrador', 'doctor' => 'Médico'];
-    $roles = $user?->getRoleNames()->map(fn (string $role) => $labels[$role] ?? $role)->join(' · ');
+    $roles = $user?->getRoleNames()->map(fn (string $role) => \App\Models\Role::labelFor($role))->join(' · ');
 @endphp
 
 @if ($user)

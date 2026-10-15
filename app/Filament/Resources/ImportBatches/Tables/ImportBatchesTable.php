@@ -16,7 +16,7 @@ class ImportBatchesTable
         return $table
             ->modifyQueryUsing(fn ($query) => $query->with(['country:id,name', 'creator:id,name']))
             ->columns([
-                TextColumn::make('created_at')->label('Subido')->dateTime()->sortable(),
+                TextColumn::make('created_at')->label('Subido')->since()->dateTimeTooltip()->sortable(),
                 TextColumn::make('file_name')->label('Archivo')->description(fn (ImportBatch $r) => $r->source)->searchable(),
                 TextColumn::make('country.name')->label('País'),
                 TextColumn::make('status')->label('Estado')->badge(),
@@ -26,7 +26,7 @@ class ImportBatchesTable
                 TextColumn::make('rows_applied')->label('Aplicadas')->numeric(),
                 TextColumn::make('rows_failed')->label('Fallidas')->numeric()
                     ->color(fn (int $state) => $state > 0 ? 'danger' : 'gray'),
-                TextColumn::make('creator.name')->label('Por')->placeholder('Consola')->toggleable(),
+                TextColumn::make('creator.name')->label('Por')->placeholder('Consola')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('created_at', 'desc')
             ->poll('10s')

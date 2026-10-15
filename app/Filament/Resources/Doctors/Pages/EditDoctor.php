@@ -21,9 +21,29 @@ class EditDoctor extends EditRecord
 {
     protected static string $resource = DoctorResource::class;
 
+    /**
+     * Debajo del formulario van las pestañas del agregado, que guardan al instante: sin
+     * barra fija, "Guardar cambios" queda a media página y parece que guarda también eso.
+     */
+    public static bool $formActionsAreSticky = true;
+
     public function getTitle(): string|Htmlable
     {
         return DoctorResource::displayName($this->record);
+    }
+
+    /**
+     * Contexto bajo el nombre, como en EditFacility. Se consulta en cada render para que
+     * refleje los cambios hechos en las pestañas de especialidades y ubicaciones.
+     */
+    public function getSubheading(): ?string
+    {
+        return collect([
+            $this->record->specialties()->wherePivot('is_primary', true)->value('specialties.name'),
+            $this->record->locations()->wherePivot('is_primary', true)->first()?->city?->name,
+            $this->record->country?->name,
+            $this->record->license_number ? "Lic. {$this->record->license_number}" : null,
+        ])->filter()->implode(' · ') ?: null;
     }
 
     protected function getHeaderActions(): array

@@ -50,7 +50,8 @@ class DoctorsTable
                     ->label('')
                     ->state(fn (Doctor $record) => InitialsAvatarProvider::dataUri(DoctorResource::displayName($record)))
                     ->circular()
-                    ->imageSize(36),
+                    ->imageSize(36)
+                    ->visibleFrom('sm'),
                 TextColumn::make('last_name')
                     ->label('Médico')
                     ->formatStateUsing(fn (Doctor $record) => DoctorResource::displayName($record))
@@ -63,13 +64,16 @@ class DoctorsTable
                     ->alignCenter(),
                 TextColumn::make('specialties.name')
                     ->label('Especialidad')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->visibleFrom('md'),
+                // Ciudad y país en una celda, como nombre y colegiado: la tabla cabe a 1440 px
+                // sin esconder las acciones tras un scroll horizontal.
                 TextColumn::make('primary_city')
-                    ->label('Ciudad')
+                    ->label('Ubicación')
                     ->state(fn (Doctor $record) => $record->locations->first()?->city?->name)
-                    ->placeholder('—'),
-                TextColumn::make('country.name')
-                    ->label('País'),
+                    ->description(fn (Doctor $record) => $record->country?->name)
+                    ->placeholder('Sin ciudad')
+                    ->visibleFrom('lg'),
                 TextColumn::make('status')
                     ->label('Publicación')
                     ->badge(),
@@ -85,8 +89,10 @@ class DoctorsTable
                 TextColumn::make('updated_at')
                     ->label('Actualizado')
                     ->since()
+                    ->dateTimeTooltip()
                     ->sortable()
-                    ->toggleable(),
+                    ->toggleable()
+                    ->visibleFrom('xl'),
             ])
             ->defaultSort('updated_at', 'desc')
             // La búsqueda trata la frase entera: DoctorSearch parte las palabras y exige todas.

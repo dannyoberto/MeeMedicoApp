@@ -49,10 +49,12 @@ class AdminPanelProvider extends PanelProvider
             ->colors(BrandColors::all())
             // Avatar de iniciales local: el proveedor por defecto envía los nombres a ui-avatars.com.
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
-            // Estructura del mockup de referencia (docs/Backoffice · Panel …png).
+            // Estructura del mockup de referencia (docs/Backoffice · Panel …png). Los catálogos
+            // se tocan poco: plegados, el menú cabe sin scroll en una pantalla de 900 px.
             ->navigationGroups([
                 NavigationGroup::make('Directorio'),
                 NavigationGroup::make('Operación'),
+                NavigationGroup::make('Catálogos')->collapsed(),
                 NavigationGroup::make('Plataforma'),
             ])
             ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, fn () => view('filament.admin.user-summary'))

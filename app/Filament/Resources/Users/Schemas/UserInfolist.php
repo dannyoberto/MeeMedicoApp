@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Models\Role;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -18,7 +19,8 @@ class UserInfolist
                         TextEntry::make('name')->label('Nombre'),
                         TextEntry::make('email')->label('Correo')->copyable(),
                         TextEntry::make('status')->label('Estado')->badge(),
-                        TextEntry::make('roles.name')->label('Roles')->badge()->color('primary')->placeholder('Sin roles'),
+                        TextEntry::make('roles.name')->label('Roles')->badge()->color('primary')->placeholder('Sin roles')
+                            ->formatStateUsing(fn (string $state) => Role::labelFor($state)),
                         TextEntry::make('email_verified_at')
                             ->label('Correo verificado')
                             ->dateTime()

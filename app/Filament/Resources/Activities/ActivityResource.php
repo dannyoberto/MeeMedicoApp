@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Activities;
 
 use App\Filament\Resources\Activities\Pages\ManageActivities;
 use App\Filament\Support\ActivityPresenter;
+use App\Filament\Support\SentenceCaseLabels;
 use App\Models\User;
 use BackedEnum;
 use Filament\Actions\ViewAction;
@@ -35,6 +36,8 @@ use UnitEnum;
  */
 class ActivityResource extends Resource
 {
+    use SentenceCaseLabels;
+
     protected static ?string $model = Activity::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;

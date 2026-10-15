@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Users\Tables;
 
 use App\Domain\Identity\Enums\UserStatus;
 use App\Filament\Resources\Users\Actions\UserActions;
+use App\Models\Role;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -26,6 +27,7 @@ class UsersTable
                     ->searchable(),
                 TextColumn::make('roles.name')
                     ->label('Roles')
+                    ->formatStateUsing(fn (string $state) => Role::labelFor($state))
                     ->badge()
                     ->color('primary'),
                 TextColumn::make('status')
@@ -49,7 +51,8 @@ class UsersTable
                     ->options(UserStatus::class),
                 SelectFilter::make('roles')
                     ->label('Rol')
-                    ->relationship('roles', 'name'),
+                    ->relationship('roles', 'name')
+                    ->getOptionLabelFromRecordUsing(fn (Role $record) => Role::labelFor($record->name)),
             ])
             ->recordActions([
                 ViewAction::make(),

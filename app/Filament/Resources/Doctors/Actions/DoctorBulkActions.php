@@ -88,7 +88,7 @@ final class DoctorBulkActions
     {
         return BulkAction::make($attach ? 'assignInsurer' : 'removeInsurer')
             ->label($attach ? 'Asignar aseguradora' : 'Quitar aseguradora')
-            ->icon($attach ? Heroicon::OutlinedShieldCheck : Heroicon::OutlinedShieldExclamation)
+            ->icon($attach ? Heroicon::OutlinedBriefcase : Heroicon::OutlinedXMark)
             ->color('gray')
             ->modalHeading($attach ? 'Asignar una aseguradora a los médicos seleccionados' : 'Quitar una aseguradora a los médicos seleccionados')
             ->modalDescription(($attach

@@ -17,11 +17,24 @@ class ClaimedProfilesChart extends ChartWidget
 
     protected ?string $heading = 'Perfiles reclamados por semana';
 
-    protected ?string $description = 'Últimas 12 semanas';
-
     protected ?string $maxHeight = '260px';
 
     private const WEEKS = 12;
+
+    /** Total del periodo, calculado en getData() para no consultar dos veces. */
+    private ?int $total = null;
+
+    /**
+     * Con el periodo vacío, el subtítulo lo dice: si no, doce barras a cero parecen un fallo.
+     */
+    public function getDescription(): ?string
+    {
+        $this->total ??= array_sum($this->getCachedData()['datasets'][0]['data'] ?? []);
+
+        return $this->total === 0
+            ? 'Últimas 12 semanas · aún no se ha reclamado ningún perfil'
+            : "Últimas 12 semanas · {$this->total} en total";
+    }
 
     public static function canView(): bool
     {

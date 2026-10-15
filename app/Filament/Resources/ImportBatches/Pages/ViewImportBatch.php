@@ -80,7 +80,9 @@ class ViewImportBatch extends ViewRecord
             Action::make('publish')
                 ->label('Publicar fichas')
                 ->icon(Heroicon::OutlinedGlobeAlt)
-                ->color('success')
+                // Una sola acción primaria por vista (design-system.md §2): el siguiente paso.
+                // Mientras quede algo por aplicar, Aplicar va primero y Publicar queda en gris.
+                ->color(fn () => $this->readyRows() > 0 ? 'gray' : 'primary')
                 ->requiresConfirmation()
                 ->modalHeading('Publicar las fichas del lote')
                 ->modalDescription(fn () => "Se intentará publicar {$this->draftDoctors()} ficha(s) en borrador creadas por este lote. Solo se publican las que tienen especialidad, consultorio con ciudad y un contacto público; el resto queda en borrador y se informa por qué.")

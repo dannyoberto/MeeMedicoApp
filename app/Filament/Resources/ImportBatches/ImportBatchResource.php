@@ -10,6 +10,7 @@ use App\Filament\Resources\ImportBatches\RelationManagers\RowsRelationManager;
 use App\Filament\Resources\ImportBatches\Schemas\ImportBatchForm;
 use App\Filament\Resources\ImportBatches\Schemas\ImportBatchInfolist;
 use App\Filament\Resources\ImportBatches\Tables\ImportBatchesTable;
+use App\Filament\Support\SentenceCaseLabels;
 use App\Models\ImportBatch;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -24,6 +25,8 @@ use UnitEnum;
  */
 class ImportBatchResource extends Resource
 {
+    use SentenceCaseLabels;
+
     protected static ?string $model = ImportBatch::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowUpTray;

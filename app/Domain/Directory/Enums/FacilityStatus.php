@@ -39,7 +39,8 @@ enum FacilityStatus: string implements HasColor, HasIcon, HasLabel
     public function getIcon(): ?Heroicon
     {
         return match ($this) {
-            self::Draft => Heroicon::OutlinedPencilSquare,
+            // No el lápiz: es el icono de la acción Editar y el badge parecería un botón.
+            self::Draft => Heroicon::OutlinedDocument,
             self::Active => Heroicon::OutlinedCheckCircle,
             self::Inactive => Heroicon::OutlinedMinusCircle,
         };
