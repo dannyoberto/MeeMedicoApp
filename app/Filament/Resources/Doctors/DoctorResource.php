@@ -50,7 +50,7 @@ class DoctorResource extends Resource
 
     public static function displayName(Doctor $doctor): string
     {
-        return $doctor->professional_name ?: trim("{$doctor->first_name} {$doctor->last_name}");
+        return $doctor->displayName();
     }
 
     /**

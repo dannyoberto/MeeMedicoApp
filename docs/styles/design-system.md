@@ -193,6 +193,17 @@ Ambos pueden coexistir en un mismo perfil, pero nunca deben parecerse. Si en el 
 - **Breakpoints:** los de Tailwind (`sm` 640, `md` 768, `lg` 1024, `xl` 1280). Se escribe siempre primero el estilo móvil y se amplía con prefijos.
 - **Área táctil:** mínimo 44 × 44 px en todo elemento interactivo (ya incluido en `.btn`, `.input` y `summary`).
 
+### 6.1 Excepción: secciones de marketing
+
+La portada (`/`) y la home de cada país (`/{pais}`) son la puerta de entrada y tienen que atraer, no solo informar (decisión de octubre de 2026, siguiendo a Doctoralia, Zocdoc y Top Doctors). **Solo en esas secciones** se permite:
+
+- Fotografía grande de personas (`hero-media`) y fondos oscuros de marca (`surface-inverse`) en bloques completos.
+- Formas decorativas planas en oro y petróleo (`hero-shape-*`) y el trazo dorado bajo una palabra del titular (`hero-highlight`). El oro sigue siendo marca: nunca estado ni acción.
+- Tarjetas flotantes con `shadow-md` y una animación de flotación de 6 s, que se apaga con `prefers-reduced-motion`.
+- Títulos de hasta 3,5 rem (`hero-title`).
+
+Lo que **no** cambia: sin gradientes, verde solo para "verificado", oro + estrella solo para premium, y el resto del sitio (ficha, listados, búsqueda) sigue sobrio y orientado a la tarea.
+
 ---
 
 ## 7. Componentes
@@ -209,6 +220,14 @@ Ambos pueden coexistir en un mismo perfil, pero nunca deben parecerse. Si en el 
 | `.card` | `card-interactive` | Padding 16 px en móvil y 24 px desde `md`. |
 | `.disclosure` | — | Acordeón nativo con `<details>`/`<summary>`: funciona sin JS. |
 | `.island` | `--island-min-h` | Contenedor de isla React que reserva altura para evitar CLS. |
+| `.chip` | `chip-active`, `.chip-count` | Criterio o filtro que es un **enlace** (ejemplos de búsqueda, ciudades, lo que entendió el buscador). Píldora de 44 px de alto. `chip-active` es un criterio aplicado: el enlace lo quita. |
+| `.avatar` | `avatar-initials`, `--avatar-size` | Foto redonda o iniciales generadas en el servidor. Nunca un servicio externo de avatares. |
+| `.doctor-card` | `.doctor-card-link`, `.doctor-card-actions` | Tarjeta de resultado. Toda la tarjeta lleva a la ficha (enlace estirado); las acciones de contacto quedan por encima. |
+| `.search-form` | `search-form-lg`, `search-form-sm`, `.search-suggestions`, `.search-suggestion`, `search-suggestion-smart` | Buscador compartido por Blade y la isla `SearchAutocomplete`. `search-suggestion-smart` es la interpretación de la frase completa (atajo al listado). |
+| `.contact-bar` | `.has-contact-bar` (en `body`) | Barra fija de contacto en la ficha, solo por debajo de `md`, con `safe-area-inset-bottom`. `has-contact-bar` reserva su alto. |
+| `.skip-link` | — | "Saltar al contenido", visible solo con foco de teclado. |
+| `.btn-inverse`, `.btn-outline-inverse` | — | Botones sobre `surface-inverse` (sección para médicos). Solo en fondos oscuros de marca. |
+| `.eyebrow`, `.hero-*`, `.float-card`, `.avatar-stack`, `.specialty-tile`, `.step-number` | — | Secciones de marketing (§6.1). |
 
 Como estas clases viven en `components.css` y no son utilidades generadas, **siempre están incluidas** en el CSS compilado. Por eso se pueden construir dinámicamente (`badge-{{ $tone }}`) sin que Tailwind las elimine.
 
@@ -239,6 +258,21 @@ Envolver el catálogo en componentes Blade anónimos (`resources/views/component
     @elseif ($hint) <p id="{{ $id }}-desc" class="field-hint">{{ $hint }}</p> @endif
 </div>
 ```
+
+### 7.2.1 Componentes del sitio público
+
+Viven en `resources/views/components/public/` y el layout en `components/layouts/public.blade.php`:
+
+| Componente | Uso |
+|---|---|
+| `<x-layouts.public>` | Layout sin sesión: SEO (`$seo`), JSON-LD, `lang="es-CR"` por país, cabecera y pie. `:contact-bar` reserva el alto de la barra móvil. |
+| `<x-public.search-form>` | Buscador. Con `:enhance="false"` no monta la isla (la cabecera: si no, toda página descargaría React). |
+| `<x-public.doctor-card>` | Tarjeta de resultado. |
+| `<x-public.contact-link>` | Enlace de contacto con `data-contact`, que registra el beacon (`resources/js/contact-events.ts`). |
+| `<x-public.contact-bar>` | Barra fija de contacto móvil de la ficha. |
+| `<x-public.avatar>`, `<x-public.verified-badge>`, `<x-public.breadcrumbs>`, `<x-public.pagination>` | Piezas comunes. |
+
+**Contacto en la ficha.** El orden es WhatsApp, teléfono, correo y web; el primero va en `btn-primary` y es una sola acción primaria por vista. La barra móvil muestra WhatsApp (o teléfono) como primaria y el teléfono como secundaria. Los teléfonos se muestran en formato internacional (`+58 416-6516822`).
 
 ### 7.3 Islas React
 
@@ -477,6 +511,24 @@ Variantes necesarias:
 
 El logo original en oro **no debe usarse sobre blanco**: la palabra "Medico" en peso ligero pierde legibilidad (2,1:1).
 
+### 13.1 Fotografía
+
+Fotos de ilustración en `public/images/home/`, ya recortadas y en WebP. Licencia de Unsplash: uso comercial gratuito, sin atribución obligatoria. Se mantiene el crédito aquí:
+
+| Archivo | Autor | Original |
+|---|---|---|
+| `hero-*`, `hero-wide-640`, `doctor-hero-160` | Siednji Leon | unsplash.com/photos/lnlSIsiSjjc |
+| `doctor-scrubs-*` | Bruno Rodrigues | unsplash.com/photos/279xIHymPYY |
+| `doctor-coat-160` | Ato Aikins | unsplash.com/photos/TPT4pevJEmQ |
+| `doctor-glasses-160`, `doctor-senior-160`, `join-*` | Vitaly Gariev | unsplash.com/photos/XqMo4OlBnh0, 6yR14fO4Oqc, _zbqco3m7dA |
+
+Reglas:
+
+- **No son médicos del directorio:** nunca llevan nombre, especialidad ni badge de verificado.
+- **Las fotos de médicos reales salen de su ficha** (`profile_photo_path`).
+- **Peso por foto:** menos de 150 KB. La de la cabecera de escritorio solo se descarga desde `lg` (`<picture>` con `media`), y la móvil es un recorte de 38 KB.
+- **Para sustituirlas por fotos propias** de médicos con consentimiento, basta reemplazar los archivos con el mismo nombre y tamaño.
+
 Iconos: Heroicons *outline* de 20–24 px en interfaz, *mini* de 16 px en badges. En Blade, mediante `blade-ui-kit/blade-heroicons` (SVG inline). En React, `@heroicons/react` con importación individual por icono.
 
 ---
@@ -521,7 +573,7 @@ Iconos: Heroicons *outline* de 20–24 px en interfaz, *mini* de 16 px en badges
 
 ## 16. Supuestos y pendientes
 
-- **Supuesto:** la licencia de Inter (SIL OFL) permite autoalojarla; verificar el subconjunto final.
+- **Supuesto:** la licencia de Inter (SIL OFL) permite autoalojarla. El archivo `public/fonts/InterVariable-latin.woff2` (47 KB) es el subconjunto latino de `@fontsource-variable/inter` 5.3.0.
 - **Pendiente:** archivos SVG de las variantes del logo (tinta y oro) e isotipo aislado.
 - **Pendiente:** confirmar qué estados del perfil existen y cuáles son visibles al paciente (§8).
 - **Pendiente:** métricas exactas de `Inter Fallback`.

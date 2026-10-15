@@ -163,3 +163,32 @@ function publishedDoctor(array $data = [], ?User $actor = null): Doctor
 
     return $doctor->refresh();
 }
+
+/**
+ * Los países se siembran inactivos (DATABASE.md §7.1) y el sitio público solo sirve
+ * los activos.
+ */
+function activeCountry(string $code = 'CR'): Country
+{
+    $country = country($code);
+    $country->forceFill(['status' => 'active'])->save();
+
+    return $country;
+}
+
+/**
+ * Ficha publicada con una especialidad y su ubicación principal en una ciudad concreta.
+ *
+ * @param  array<string, mixed>  $data
+ */
+function publishedDoctorIn(string $cityName, string $specialtySlug = 'cardiologia', array $data = [], string $countryCode = 'CR'): Doctor
+{
+    $doctor = makeDoctor(['country_id' => country($countryCode)->id, ...$data]);
+
+    app(DoctorSpecialtiesAction::class)->attach($doctor, specialty($specialtySlug), null);
+    app(DoctorLocationsAction::class)->attachNew($doctor, ['city_id' => city($countryCode, $cityName)->id, 'address' => 'Calle 1'], LocationType::Office, null);
+    app(DoctorContactsAction::class)->save($doctor, null, ['type' => 'phone', 'value' => '2222-3333'], null);
+    app(PublishDoctorAction::class)->execute($doctor, null);
+
+    return $doctor->refresh();
+}

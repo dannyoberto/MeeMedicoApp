@@ -15,6 +15,7 @@ return [
         'admin',
         'api',
         'assets',
+        'buscar',
     ],
 
     /*
@@ -25,5 +26,22 @@ return [
     */
 
     'media_disk' => env('MEDIA_DISK', 'public'),
+
+    /*
+    | Canal por el que un médico pide, desde su ficha, corregir sus datos o salir del
+    | directorio (MODELO-DOMINIO.md §2.10). Son enlaces estáticos: la ficha sigue siendo
+    | cacheable. El número de WhatsApp es por país (ISO alfa-2) y en E.164; sin número,
+    | la ficha solo ofrece el correo.
+    */
+
+    'operations' => [
+        'email' => env('OPERATIONS_EMAIL', 'medicos@meemedico.com'),
+        'whatsapp' => [
+            'CR' => env('OPERATIONS_WHATSAPP_CR'),
+            'GT' => env('OPERATIONS_WHATSAPP_GT'),
+            'DO' => env('OPERATIONS_WHATSAPP_DO'),
+            'VE' => env('OPERATIONS_WHATSAPP_VE'),
+        ],
+    ],
 
 ];

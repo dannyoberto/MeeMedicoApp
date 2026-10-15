@@ -75,6 +75,14 @@ class Doctor extends Model
         ];
     }
 
+    /**
+     * Nombre con el que se muestra, en el backoffice y en el sitio público.
+     */
+    public function displayName(): string
+    {
+        return $this->professional_name ?: trim("{$this->first_name} {$this->last_name}");
+    }
+
     public function country(): BelongsTo
     {
         return $this->belongsTo(Country::class);

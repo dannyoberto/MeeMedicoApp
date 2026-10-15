@@ -401,7 +401,7 @@ El catálogo es **global, no por país**. Cardiología es cardiología en los cu
 
 `parent_id` permite una jerarquía de dos niveles (Cardiología → Cardiología intervencionista). El `CHECK` evita el autopadre; ciclos más largos son teóricamente posibles y se previenen en la aplicación, pero con un catálogo curado manualmente el riesgo es nulo.
 
-> **Decisión de URL pendiente que depende de esto:** si la subespecialidad tendrá página propia (`/costa-rica/cardiologia-intervencionista/san-jose`) o solo será un filtro dentro de la página de la especialidad padre. Es una decisión de SEO, no de base de datos, pero conviene tomarla antes de generar el sitemap.
+> **Decisión de URL (cerrada en octubre de 2026, `ARQUITECTURA.md` §12 #2):** la subespecialidad no tiene página propia. Es un filtro (`?sub=cardiologia-intervencionista`) dentro del listado de la especialidad padre, y su slug usado como especialidad redirige con 301 a ese listado. El médico con una subespecialidad aparece en los listados del padre, y `DoctorPublicPaths` purga las URLs del padre. No cambia el esquema.
 
 ## 8.2 `specialty_aliases`
 
@@ -423,7 +423,7 @@ CREATE TABLE specialty_aliases (
 );
 ```
 
-`kind` distingue tres usos distintos de la misma tabla: `import` para mapear texto libre de la fuente ("CARDIOLOGIA CLINICA"), `local` para variantes por país, y `seo` para sinónimos de búsqueda ("médico del corazón"). Este último no se explota en Fase 1 pero la estructura lo admite sin cambios.
+`kind` distingue tres usos distintos de la misma tabla: `import` para mapear texto libre de la fuente ("CARDIOLOGIA CLINICA"), `local` para variantes por país, y `seo` para sinónimos de búsqueda ("médico del corazón"). Los `seo` ya se usan en Fase 1: `SpecialtySeeder::SEO_ALIASES` siembra los nombres del profesional ("pediatra", "cardióloga") y `QueryInterpreter` los usa para entender búsquedas como "pediatra en Heredia".
 
 ## 8.3 `languages`
 

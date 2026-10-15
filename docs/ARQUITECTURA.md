@@ -186,6 +186,15 @@ El producto es *search-first*, pero eso no significa comprar un motor de búsque
 
 **La decisión que sí se toma hoy** es no acoplar el código a la implementación: toda la búsqueda detrás de una interfaz `DoctorSearchService`, o directamente sobre Laravel Scout. Cambiar de motor en Fase 2 debe ser cambiar configuración, no reescribir controladores.
 
+**Implementado (octubre 2026)** en `app/Domain/Search/`:
+
+- `DoctorSearchService` (interfaz) con el driver `PostgresDoctorSearch`, enlazados en `AppServiceProvider`.
+- `SearchCriteria`, lo que se busca ya resuelto contra los catálogos.
+- `QueryInterpreter`, la búsqueda en lenguaje natural. Convierte "pediatra en Heredia que hable inglés" en especialidad, ciudad e idioma comparando grupos de palabras con nombres y alias. Es determinista y no usa IA. Si la frase completa es especialidad + ciudad, `/buscar` redirige al listado canónico.
+- `SearchSuggestions`, el autocompletado de `/api/v1/{pais}/suggest`.
+
+Con Meilisearch solo cambia el driver; el intérprete y los criterios se quedan.
+
 ---
 
 # 8. Decisión 5 — Infraestructura
@@ -211,6 +220,16 @@ Cuando un médico se publica, se actualiza o se fusiona, hay que purgar su URL y
 Si no se diseña desde el principio, se acaba poniendo TTL de cinco minutos a todo y se pierde el beneficio entero.
 
 **Implementación.** Las Actions no emiten eventos de modelo. Usan `DoctorCachePurge`, que calcula las rutas públicas del médico **antes y después** del cambio (su ficha y cada listado `/{pais}/{especialidad}/{ciudad}` de su ubicación principal) y despacha el job `PurgeCdnPaths` en cola y **después del commit**. Detrás está la interfaz `CdnPurger`: hoy el driver `log` (`CDN_DRIVER=log`) solo registra las rutas. Cloudflare será otro driver, sin tocar las Actions. Cloudflare purga por URL en todos sus planes; la purga por prefijo o etiqueta es de Enterprise, de ahí que se calculen URLs concretas.
+
+**Cabeceras (middleware `PublicCache`, grupo `public`).** Las rutas públicas viven en `routes/public.php`, en un grupo sin sesión, cookies ni CSRF:
+
+| Respuesta | `Cache-Control` | Por qué |
+|---|---|---|
+| URL sin query string (ficha, listado, especialidad, home) | `s-maxage=86400` | La frescura la da la purga por URL, no el plazo |
+| URL con query string (`?page=`, filtros, `/buscar?q=`) | `s-maxage=600` | No se pueden enumerar para purgarlas: 10 minutos es el retraso máximo con el que un médico suspendido deja de aparecer |
+| Errores | `s-maxage=300` | Un 404 de un médico que se publica mañana no puede quedarse un día |
+
+El navegador nunca guarda más de cinco minutos (`max-age=300`): a él no le llega la purga.
 
 ## 8.2 Imágenes
 
@@ -392,7 +411,7 @@ Decisiones que suenan bien en una conversación de arquitectura y que hundirían
 | # | Decisión | Estado |
 |---|---|---|
 | 1 | `spatie/laravel-permission` en lugar de tablas `user_roles` / `role_permissions` propias | **Pendiente.** Contradice una decisión marcada como aprobada en el Modelo de Identidad v1.0. A favor: caché de permisos integrada, integración con Filament vía `filament-shield`, años de producción. En contra: los nombres de tabla los fija el paquete |
-| 2 | Página propia para subespecialidades, o solo filtro dentro de la especialidad padre | **Pendiente.** Decisión de SEO, hay que tomarla antes de generar el sitemap |
+| 2 | Página propia para subespecialidades, o solo filtro dentro de la especialidad padre | **Cerrada (octubre 2026): filtro.** La subespecialidad no tiene URL propia: es `?sub=` dentro de `/{pais}/{especialidad}/{ciudad}`, sin indexar, y su slug redirige (301) al listado del padre. Con pocos médicos por ciudad, las páginas propias serían contenido pobre. Ascender una subespecialidad a página propia más adelante es añadir rutas y un 301 inverso |
 | 3 | Fuente del archivo de carga masiva y su perfilado | **Pendiente.** Ver `database.md §12.5`. Puede obligar a partir la importación en dos fases |
 | 4 | Google Maps frente a MapLibre/MapTiler para el mapa de Fase 3 | Pendiente, sin urgencia |
 

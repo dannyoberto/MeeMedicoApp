@@ -9,10 +9,13 @@
  */
 import type { ComponentType } from 'react';
 
-type IslandModule = { default: ComponentType<Record<string, unknown>> };
+// Los props llegan como JSON desde Blade (data-props): no hay tipo común. El contrato lo
+// declara cada isla en su tipo Props, y el componente Blade que la monta lo respeta.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type IslandModule = { default: ComponentType<any> };
 
 const islands: Record<string, () => Promise<IslandModule>> = {
-    ReactCheck: () => import('./islands/ReactCheck'),
+    SearchAutocomplete: () => import('./islands/SearchAutocomplete'),
 };
 
 function readProps(el: HTMLElement): Record<string, unknown> {
