@@ -58,6 +58,10 @@ describe('home del país', function () {
             ->assertSee('Próximamente');
     });
 
+    it('no descarga React al cargar: la isla del buscador se monta al interactuar', function () {
+        $this->get('/costa-rica')->assertSee('data-island-load="interaction"', false);
+    });
+
     it('no carga la foto grande en móvil: solo hay fuente para lg', function () {
         $this->get('/costa-rica')
             ->assertSee('media="(min-width: 64rem)"', false)
@@ -73,6 +77,8 @@ describe('ficha', function () {
             ->assertSee('tel:+50622223333', false)
             ->assertSee('"@type":"Physician"', false)
             ->assertSee('data-contact="phone"', false)
+            // Qué teléfono es: el número 2222-3333 de Costa Rica es fijo.
+            ->assertSee('· Fijo')
             ->assertSee('<meta name="robots" content="index, follow">', false)
             ->assertDontSee('data-island', false);
     });

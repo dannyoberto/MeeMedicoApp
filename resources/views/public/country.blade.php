@@ -7,16 +7,16 @@
     $more = $specialties->slice(8);
 @endphp
 <x-layouts.public :country="$country" :seo="$seo" :header-search="false">
-    {{-- Hero: buscador protagonista y fotografía --}}
-    <section class="overflow-hidden bg-surface">
-        <div class="mx-auto grid max-w-content items-center gap-12 px-4 pt-10 pb-14 md:pt-14 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16 lg:pt-20 lg:pb-24">
+    {{-- Hero: banda oscura de marca, buscador protagonista y fotografía --}}
+    <section class="band-dark overflow-hidden">
+        <div class="mx-auto grid max-w-content items-center gap-12 px-4 pt-10 pb-16 md:pt-16 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16 lg:pt-20 lg:pb-24">
             <div class="min-w-0">
                 <p class="eyebrow"><span class="eyebrow-dot"></span>Directorio médico de {{ $country->name }}</p>
 
                 <h1 class="hero-title mt-6">
                     Tu próximo médico está a <span class="hero-highlight">una llamada</span>
                 </h1>
-                <p class="mt-5 max-w-xl text-lg text-fg-muted">
+                <p class="text-muted-inverse mt-5 max-w-xl text-lg">
                     Escribe como lo dirías —especialidad, ciudad, idioma o nombre— y contacta directo al consultorio
                     por teléfono o WhatsApp. Sin registros ni intermediarios.
                 </p>
@@ -27,10 +27,10 @@
 
                 @if ($examples !== [])
                     <div class="mt-5 flex flex-wrap items-center gap-2">
-                        <span class="text-sm text-fg-muted">Prueba con</span>
+                        <span class="text-muted-inverse text-sm">Prueba con</span>
                         @foreach ($examples as $example)
                             <a href="{{ $example['url'] }}" class="chip">
-                                <x-heroicon-m-magnifying-glass class="size-4 text-fg-subtle" aria-hidden="true" />
+                                <x-heroicon-m-magnifying-glass class="size-4 opacity-70" aria-hidden="true" />
                                 {{ $example['label'] }}
                             </a>
                         @endforeach
@@ -38,13 +38,13 @@
                 @endif
 
                 @if ($total > 0)
-                    <x-public.avatar-stack class="mt-8" :total="$total" :place="$country->name" />
+                    <x-public.avatar-stack class="mt-8" :total="$total" :place="$country->name" :inverse="true" />
                 @endif
 
-                <x-public.hero-media-mobile class="mt-8 lg:hidden" />
+                <x-public.hero-media-mobile class="mt-10 lg:hidden" />
             </div>
 
-            <x-public.hero-media class="mx-auto hidden w-full max-w-md lg:block" />
+            <x-public.hero-media class="mx-auto hidden w-full max-w-md lg:block" :total="$total" :place="$country->name" />
         </div>
     </section>
 
@@ -57,24 +57,21 @@
         </div>
     @else
         {{-- Especialidades --}}
-        <section class="mx-auto max-w-content px-4 py-14 md:py-20" aria-labelledby="especialidades">
-            <div class="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <h2 id="especialidades" class="text-3xl md:text-4xl">Especialidades más buscadas</h2>
-                    <p class="mt-2 text-fg-muted">Elige una y te mostramos en qué ciudades hay especialistas.</p>
-                </div>
-            </div>
+        <section class="reveal mx-auto max-w-content px-4 py-16 md:py-24" aria-labelledby="especialidades">
+            <p class="eyebrow"><span class="eyebrow-dot"></span>{{ $specialties->count() }} especialidades</p>
+            <h2 id="especialidades" class="section-title mt-4">Especialidades más buscadas</h2>
+            <p class="mt-3 max-w-prose text-lg text-fg-muted">Elige una y te mostramos en qué ciudades hay especialistas.</p>
 
-            <ul class="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 md:gap-4">
+            <ul class="mt-10 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
                 @foreach ($tiles as $item)
                     <li>
-                        <a href="{{ PublicUrl::specialty($country, $item['specialty']) }}" class="specialty-tile h-full">
+                        <a href="{{ PublicUrl::specialty($country, $item['specialty']) }}" @class(['specialty-tile h-full', 'specialty-tile-gold' => $loop->index % 3 === 1])>
                             <span class="specialty-tile-icon">
                                 <x-dynamic-component :component="SpecialtyIcon::for($item['specialty']->slug)" class="size-6" aria-hidden="true" />
                             </span>
                             <span class="mt-auto">
-                                <span class="block font-semibold">{{ $item['specialty']->name }}</span>
-                                <span class="block text-sm text-fg-muted">{{ $item['total'] }} {{ $item['total'] === 1 ? 'médico' : 'médicos' }}</span>
+                                <span class="block text-lg font-semibold leading-snug">{{ $item['specialty']->name }}</span>
+                                <span class="mt-1 block text-sm text-fg-muted">{{ $item['total'] }} {{ $item['total'] === 1 ? 'médico' : 'médicos' }}</span>
                             </span>
                         </a>
                     </li>
@@ -99,11 +96,11 @@
 
         {{-- Cómo funciona --}}
         <section class="bg-surface" aria-labelledby="como-funciona">
-            <div class="mx-auto max-w-content px-4 py-14 md:py-20">
-                <h2 id="como-funciona" class="text-center text-3xl md:text-4xl">Así de fácil</h2>
-                <p class="mx-auto mt-3 max-w-prose text-center text-fg-muted">Sin cuentas, sin formularios, sin esperar a que te devuelvan la llamada.</p>
+            <div class="reveal mx-auto max-w-content px-4 py-16 md:py-24">
+                <h2 id="como-funciona" class="section-title text-center">Así de fácil</h2>
+                <p class="mx-auto mt-3 max-w-prose text-center text-lg text-fg-muted">Sin cuentas, sin formularios, sin esperar a que te devuelvan la llamada.</p>
 
-                <ol class="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+                <ol class="mt-14 grid gap-10 md:grid-cols-3 md:gap-8">
                     @foreach ([
                         ['Busca', 'Escribe lo que necesitas: "pediatra en tu ciudad" o el nombre del médico.', 'magnifying-glass'],
                         ['Compara', 'Mira especialidades, consultorios, idiomas y quién tiene la licencia verificada.', 'user-group'],
@@ -111,7 +108,7 @@
                     ] as $i => [$title, $text, $icon])
                         <li class="flex flex-col items-center text-center">
                             <span class="step-number">{{ $i + 1 }}</span>
-                            <h3 class="mt-5 flex items-center gap-2 text-xl">
+                            <h3 class="mt-5 flex items-center gap-2 text-xl font-bold">
                                 <x-dynamic-component :component="'heroicon-o-'.$icon" class="size-5 text-primary" aria-hidden="true" />
                                 {{ $title }}
                             </h3>
@@ -124,10 +121,14 @@
 
         {{-- Médicos destacados: datos reales del directorio --}}
         @if ($featured->isNotEmpty())
-            <section class="mx-auto max-w-content px-4 py-14 md:py-20" aria-labelledby="medicos">
-                <h2 id="medicos" class="text-3xl md:text-4xl">Conoce a algunos médicos</h2>
-                <p class="mt-2 text-fg-muted">Perfiles publicados en {{ $country->name }}, con su contacto directo.</p>
-                <div class="mt-8 grid gap-4 md:grid-cols-2">
+            <section class="reveal mx-auto max-w-content px-4 py-16 md:py-24" aria-labelledby="medicos">
+                <div class="flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                        <h2 id="medicos" class="section-title">Conoce a algunos médicos</h2>
+                        <p class="mt-3 text-lg text-fg-muted">Perfiles publicados en {{ $country->name }}, con su contacto directo.</p>
+                    </div>
+                </div>
+                <div class="mt-10 grid gap-4 md:grid-cols-2">
                     @foreach ($featured as $doctor)
                         <x-public.doctor-card :doctor="$doctor" heading-level="h3" source="listing" />
                     @endforeach
@@ -136,7 +137,7 @@
         @endif
 
         {{-- Ciudades --}}
-        <section class="mx-auto max-w-content px-4 pb-14 md:pb-20" aria-labelledby="ciudades">
+        <section class="reveal mx-auto max-w-content px-4 pb-16 md:pb-24" aria-labelledby="ciudades">
             <h2 id="ciudades" class="text-2xl md:text-3xl">Busca en tu ciudad</h2>
             <ul class="mt-6 flex flex-wrap gap-2">
                 @foreach ($cities as $item)
@@ -151,5 +152,5 @@
         </section>
     @endif
 
-    <x-public.join-doctors :country="$country" />
+    <x-public.join-doctors class="reveal" :country="$country" />
 </x-layouts.public>

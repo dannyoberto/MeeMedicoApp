@@ -85,8 +85,12 @@ final class ListingController extends Controller
             'languages' => PublicFilters::languages(),
             'filtered' => $filtered,
             'baseUrl' => $baseUrl,
-            // Sin resultados: la misma especialidad en otras ciudades del país.
-            'otherCities' => $total === 0 ? $search->cityFacets($criteria)->take(8) : collect(),
+            // La misma especialidad en otras ciudades: salida cuando hay pocos resultados
+            // y enlazado interno entre listados (SEO).
+            'otherCities' => $search->cityFacets(new SearchCriteria($pais, $specialty))
+                ->reject(fn (array $item) => $item['city']->is($city))
+                ->take(8)
+                ->values(),
             'breadcrumbs' => $breadcrumbs,
             'seo' => [
                 'title' => $title.', '.$pais->name.($criteria->page > 1 ? " · página {$criteria->page}" : ''),

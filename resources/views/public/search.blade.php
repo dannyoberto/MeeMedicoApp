@@ -1,9 +1,7 @@
 @php use App\Http\Support\PublicUrl; @endphp
 <x-layouts.public :country="$country" :seo="$seo" :header-search="false">
-    <div class="mx-auto max-w-content px-4 py-8 md:py-10">
-        <x-public.breadcrumbs :items="$breadcrumbs" />
-
-        <h1 class="mt-4 text-3xl md:text-4xl">
+    <x-public.page-hero :breadcrumbs="$breadcrumbs">
+        <h1 class="text-4xl md:text-5xl">
             @if ($query !== null)
                 Resultados para «{{ $query }}»
             @else
@@ -17,7 +15,7 @@
 
         @if ($chips !== [])
             <div class="mt-5 flex flex-wrap items-center gap-2" aria-label="Lo que entendimos de tu búsqueda">
-                <span class="text-sm text-fg-muted">Buscando</span>
+                <span class="text-muted-inverse text-sm">Buscando</span>
                 @foreach ($chips as $chip)
                     <a href="{{ $chip['url'] }}" class="chip chip-active" aria-label="Quitar {{ $chip['label'] }}">
                         {{ $chip['label'] }}
@@ -26,9 +24,11 @@
                 @endforeach
             </div>
         @endif
+    </x-public.page-hero>
 
+    <div class="mx-auto max-w-content px-4 py-10 md:py-12">
         @if ($doctors !== null && $doctors->isNotEmpty())
-            <p class="mt-8 text-sm text-fg-muted" role="status">
+            <p class="text-sm text-fg-muted" role="status">
                 {{ $doctors->total() }} {{ $doctors->total() === 1 ? 'resultado' : 'resultados' }}
             </p>
             <div class="mt-4 grid gap-4 lg:grid-cols-2">

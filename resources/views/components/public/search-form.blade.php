@@ -24,7 +24,7 @@
         'placeholder' => 'Especialidad, ciudad o nombre',
     ];
 @endphp
-<div class="island" style="--island-min-h: {{ $size === 'lg' ? '3.5rem' : '2.75rem' }}" @if ($enhance) data-island="SearchAutocomplete" data-props='@json($props)' @endif>
+<div class="island" style="--island-min-h: {{ $size === 'lg' ? '3.5rem' : '2.75rem' }}" @if ($enhance) data-island="SearchAutocomplete" data-island-load="interaction" data-props='@json($props)' @endif>
     <form action="{{ $props['action'] }}" method="get" role="search" class="search-form search-form-{{ $size }}">
         <div class="search-form-field">
             <label for="{{ $id }}" class="sr-only">Buscar médicos</label>

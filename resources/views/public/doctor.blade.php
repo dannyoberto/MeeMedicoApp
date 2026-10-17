@@ -3,41 +3,59 @@
     use App\Domain\Directory\Enums\FacilityStatus;
 @endphp
 <x-layouts.public :country="$country" :seo="$seo" :json-ld="$jsonLd" :contact-bar="$primaryContact !== null">
-    <div class="mx-auto max-w-content px-4 py-8 md:py-10">
-        <x-public.breadcrumbs :items="$breadcrumbs" />
+    @php $vt = strtolower($doctor->id); @endphp
+    <x-public.page-hero :breadcrumbs="$breadcrumbs" :overlap="true">
+        <p class="eyebrow"><span class="eyebrow-dot"></span>Perfil profesional{{ $primaryLocation?->city ? ' · '.$primaryLocation->city->name : '' }}</p>
+    </x-public.page-hero>
 
-        <div class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8">
-            {{-- Cabecera --}}
-            <header class="card lg:col-start-1">
-                <div class="flex flex-col gap-5 sm:flex-row sm:items-start">
-                    <x-public.avatar :name="$name" :photo="$photoUrl" :size="96" :eager="true" />
+    <div class="mx-auto -mt-20 max-w-content px-4 pb-10 md:-mt-24">
+        <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-8">
+            {{-- Cabecera: tarjeta montada sobre la banda --}}
+            <header class="card relative shadow-md lg:col-start-1 md:p-8">
+                <div class="flex flex-col gap-6 sm:flex-row sm:items-center">
+                    <span class="shrink-0" style="view-transition-name: photo-{{ $vt }}">
+                        <x-public.avatar :name="$name" :photo="$photoUrl" :size="120" :eager="true" />
+                    </span>
                     <div class="min-w-0">
-                        <h1 class="text-2xl md:text-3xl">{{ $name }}</h1>
+                        <h1 class="text-3xl font-extrabold tracking-tight md:text-4xl">
+                            <span style="view-transition-name: name-{{ $vt }}">{{ $name }}</span>
+                        </h1>
                         @if ($doctor->specialties->isNotEmpty())
-                            <p class="mt-1 text-lg text-fg-muted">{{ $doctor->specialties->pluck('name')->join(' · ') }}</p>
+                            <ul class="mt-3 flex flex-wrap gap-2">
+                                @foreach ($doctor->specialties as $specialty)
+                                    <li @class(['badge text-sm', 'badge-primary' => $loop->first, 'badge-gray' => ! $loop->first])>{{ $specialty->name }}</li>
+                                @endforeach
+                            </ul>
                         @endif
-                        <div class="mt-3 flex flex-wrap gap-2">
+                        <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-fg-muted">
                             @if ($verified)
                                 <x-public.verified-badge />
                             @endif
                             @if ($primaryLocation?->city)
-                                <span class="badge badge-gray">
-                                    <x-heroicon-m-map-pin class="size-4 shrink-0" aria-hidden="true" />
-                                    {{ $primaryLocation->city->name }}
+                                <span class="inline-flex items-center gap-1">
+                                    <x-heroicon-m-map-pin class="size-4 shrink-0 text-fg-subtle" aria-hidden="true" />
+                                    {{ $primaryLocation->city->name }}, {{ $country->name }}
+                                </span>
+                            @endif
+                            @if ($doctor->languages->isNotEmpty())
+                                <span class="inline-flex items-center gap-1">
+                                    <x-heroicon-m-language class="size-4 shrink-0 text-fg-subtle" aria-hidden="true" />
+                                    {{ $doctor->languages->pluck('name')->join(', ') }}
                                 </span>
                             @endif
                         </div>
-                        @if ($doctor->profile?->headline)
-                            <p class="mt-4 max-w-prose">{{ $doctor->profile->headline }}</p>
-                        @endif
                     </div>
                 </div>
+                @if ($doctor->profile?->headline)
+                    <p class="mt-6 max-w-prose border-t border-border pt-5 text-lg">{{ $doctor->profile->headline }}</p>
+                @endif
             </header>
 
             {{-- Contacto: después de la cabecera en móvil, columna lateral fija en escritorio --}}
             <aside class="lg:col-start-2 lg:row-span-2 lg:row-start-1" aria-labelledby="contacto">
-                <div class="card lg:sticky lg:top-6">
-                    <h2 id="contacto" class="text-lg">Contactar</h2>
+                <div class="card border-t-4 border-t-primary shadow-md lg:sticky lg:top-6">
+                    <h2 id="contacto" class="text-xl">Contactar</h2>
+                    <p class="mt-1 text-sm text-fg-muted">Habla directo con el consultorio.</p>
                     @if ($contacts->isNotEmpty())
                         <div class="mt-4 flex flex-col gap-2">
                             @foreach ($contacts as $contact)
@@ -72,8 +90,11 @@
                                         ? "{$location->latitude},{$location->longitude}"
                                         : collect([$facility?->name, $place, $country->name])->filter()->join(', ');
                                 @endphp
-                                <li class="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between">
-                                    <div class="min-w-0">
+                                <li class="flex flex-col gap-4 py-5 first:pt-0 last:pb-0 sm:flex-row sm:items-start">
+                                    <span class="specialty-tile-icon hidden shrink-0 sm:inline-flex">
+                                        <x-dynamic-component :component="$facility ? 'heroicon-o-building-office-2' : 'heroicon-o-map-pin'" class="size-6" aria-hidden="true" />
+                                    </span>
+                                    <div class="min-w-0 flex-1">
                                         @if ($facility)
                                             <p class="font-medium">Atiende en {{ $facility->name }}</p>
                                         @elseif ($location->name)
@@ -88,7 +109,7 @@
                                         href="https://www.google.com/maps/search/?api=1&query={{ rawurlencode($mapsQuery) }}"
                                         target="_blank"
                                         rel="noopener nofollow"
-                                        class="btn btn-ghost btn-sm shrink-0 self-start"
+                                        class="btn btn-secondary btn-sm shrink-0 self-start"
                                         data-contact="{{ ContactEventType::Directions->value }}"
                                         data-doctor="{{ $doctor->id }}"
                                         data-source="profile"
@@ -115,22 +136,23 @@
                     @endif
                 @endforeach
 
-                @if ($doctor->languages->isNotEmpty())
-                    <section class="card" aria-labelledby="idiomas">
-                        <h2 id="idiomas" class="text-xl">Idiomas</h2>
-                        <ul class="mt-3 flex flex-wrap gap-2">
-                            @foreach ($doctor->languages as $language)
-                                <li class="badge badge-gray">{{ $language->name }}</li>
-                            @endforeach
-                        </ul>
-                    </section>
-                @endif
-
                 @if ($listingUrl)
-                    <a href="{{ $listingUrl }}" class="btn btn-ghost justify-start text-left">
-                        <x-heroicon-m-arrow-left class="size-5" aria-hidden="true" />
-                        Más {{ mb_strtolower($primarySpecialty->name) }} en {{ $primaryLocation->city->name }}
-                    </a>
+                    <section class="band-dark flex flex-col gap-5 rounded-[1.5rem] p-6 sm:flex-row sm:items-center sm:justify-between md:p-8" aria-labelledby="mas-especialistas">
+                        <div>
+                            <h2 id="mas-especialistas" class="text-2xl">{{ $primarySpecialty->name }} en {{ $primaryLocation->city->name }}</h2>
+                            <p class="text-muted-inverse mt-1">
+                                @if ($listingTotal > 1)
+                                    <span class="font-bold text-brand">{{ $listingTotal }}</span> especialistas publicados en la ciudad.
+                                @else
+                                    Compara con especialistas de otras ciudades.
+                                @endif
+                            </p>
+                        </div>
+                        <a href="{{ $listingUrl }}" class="btn btn-inverse shrink-0">
+                            Ver especialistas
+                            <x-heroicon-m-arrow-right class="size-5" aria-hidden="true" />
+                        </a>
+                    </section>
                 @endif
 
                 <section class="rounded-lg border border-border bg-surface-muted p-4 text-sm md:p-6" aria-labelledby="eres-este-medico">

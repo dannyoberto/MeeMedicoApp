@@ -32,26 +32,55 @@ function readProps(el: HTMLElement): Record<string, unknown> {
     }
 }
 
-export async function mountIslands(root: ParentNode = document): Promise<void> {
-    const elements = [...root.querySelectorAll<HTMLElement>('[data-island]:not([data-island-mounted])')];
-    if (elements.length === 0) {
+/**
+ * data-island-load="interaction": React no se descarga al cargar la página, sino cuando el
+ * usuario se acerca a la isla (ratón encima, foco o toque). La versión Blade funciona
+ * mientras tanto. Sin esto, la home del país pagaba ~70 KB de React antes del LCP
+ * (de 2,3 s a 3,9 s en Lighthouse móvil).
+ */
+const INTERACTION_EVENTS = ['pointerenter', 'focusin', 'touchstart'] as const;
+
+export function mountIslands(root: ParentNode = document): void {
+    for (const el of root.querySelectorAll<HTMLElement>('[data-island]:not([data-island-mounted])')) {
+        if (el.dataset.islandLoad !== 'interaction') {
+            void mount(el, false);
+            continue;
+        }
+
+        const onInteraction = () => {
+            INTERACTION_EVENTS.forEach((type) => el.removeEventListener(type, onInteraction));
+            void mount(el, true);
+        };
+        INTERACTION_EVENTS.forEach((type) => el.addEventListener(type, onInteraction, { passive: true }));
+    }
+}
+
+async function mount(el: HTMLElement, onInteraction: boolean): Promise<void> {
+    const name = el.dataset.island ?? '';
+    const load = islands[name];
+    if (!load) {
+        console.error(`Isla desconocida: "${name}"`);
         return;
     }
 
-    const [{ createElement }, { createRoot }] = await Promise.all([import('react'), import('react-dom/client')]);
+    el.dataset.islandMounted = 'true';
+    const [{ createElement }, { createRoot }, { default: Component }] = await Promise.all([
+        import('react'),
+        import('react-dom/client'),
+        load(),
+    ]);
 
-    await Promise.all(
-        elements.map(async (el) => {
-            const name = el.dataset.island ?? '';
-            const load = islands[name];
-            if (!load) {
-                console.error(`Isla desconocida: "${name}"`);
-                return;
-            }
+    const props = readProps(el);
 
-            el.dataset.islandMounted = 'true';
-            const { default: Component } = await load();
-            createRoot(el).render(createElement(Component, readProps(el)));
-        }),
-    );
+    // Lo que el usuario escribió en el formulario Blade mientras React se descargaba no se
+    // pierde: la isla arranca con ese valor y con el foco donde estaba.
+    if (onInteraction) {
+        const input = el.querySelector('input');
+        if (input) {
+            props.value = input.value;
+            props.activate = document.activeElement === input;
+        }
+    }
+
+    createRoot(el).render(createElement(Component, props));
 }

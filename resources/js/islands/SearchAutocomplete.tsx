@@ -22,6 +22,8 @@ type Props = {
     size?: 'lg' | 'sm';
     inputId?: string;
     placeholder?: string;
+    /** Montada al interactuar con el campo (bootstrap-islands): recupera foco y sugerencias. */
+    activate?: boolean;
 };
 
 type Suggestion = { label: string; meta: string; url: string };
@@ -62,13 +64,30 @@ export default function SearchAutocomplete({
     size = 'lg',
     inputId = 'q',
     placeholder = 'Especialidad, ciudad o nombre',
+    activate = false,
 }: Props) {
     const [query, setQuery] = useState(value ?? '');
     const [options, setOptions] = useState<Option[]>([]);
     const [open, setOpen] = useState(false);
     const [active, setActive] = useState(-1);
     const touched = useRef(false);
+    const inputRef = useRef<HTMLInputElement>(null);
     const listId = useId();
+
+    // Va antes que el efecto de sugerencias: si el usuario ya escribía en el formulario
+    // Blade, ese efecto debe verlo como "tocado" en este mismo render.
+    useEffect(() => {
+        if (!activate || !inputRef.current) {
+            return;
+        }
+        const input = inputRef.current;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        touched.current = input.value.trim().length > 0;
+        setOpen(true);
+        // Solo al montar.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         // No sugerir al montar con el valor que trae la página de resultados.
@@ -157,6 +176,7 @@ export default function SearchAutocomplete({
                 </label>
                 <MagnifyingGlassIcon className="search-form-icon" aria-hidden="true" />
                 <input
+                    ref={inputRef}
                     id={inputId}
                     name="q"
                     type="search"

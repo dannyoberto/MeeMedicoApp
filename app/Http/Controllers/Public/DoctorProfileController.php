@@ -8,6 +8,8 @@ use App\Domain\Directory\Enums\SpecialtyStatus;
 use App\Domain\Directory\Enums\VerificationStatus;
 use App\Domain\Directory\Support\PublicationRequirements;
 use App\Domain\Directory\Support\PublicSlugs;
+use App\Domain\Search\DoctorSearchService;
+use App\Domain\Search\SearchCriteria;
 use App\Http\Controllers\Controller;
 use App\Http\Support\Breadcrumbs;
 use App\Http\Support\ContactLink;
@@ -24,7 +26,7 @@ use Illuminate\View\View;
  */
 final class DoctorProfileController extends Controller
 {
-    public function __invoke(Country $pais, string $slug): View|RedirectResponse
+    public function __invoke(Country $pais, string $slug, DoctorSearchService $search): View|RedirectResponse
     {
         $doctor = PublicSlugs::doctor($pais, $slug) ?? abort(404);
 
@@ -81,6 +83,11 @@ final class DoctorProfileController extends Controller
             'primarySpecialty' => $primarySpecialty,
             'primaryLocation' => $primaryLocation,
             'listingUrl' => $listingUrl,
+            // Solo una cifra: si queda desfasada un día (la ficha no se purga al publicar
+            // a otro médico de la ciudad), no muestra nada incorrecto sobre nadie.
+            'listingTotal' => $listingUrl
+                ? $search->search(new SearchCriteria($pais, $topSpecialty, city: $city), 1)->total()
+                : 0,
             'breadcrumbs' => $breadcrumbs,
             'photoUrl' => PublicUrl::photo($doctor),
             'contacts' => ContactLink::forDoctor($doctor),

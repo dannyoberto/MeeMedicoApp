@@ -1,13 +1,15 @@
 {{--
     Composición fotográfica del hero: foto principal, formas de marca y dos tarjetas
-    flotantes. Solo desde lg; en móvil la sustituye la fila de avatares.
+    flotantes. Solo desde lg; en móvil se usa hero-media-mobile.
 
     La foto se sirve con <picture> y una fuente solo para lg: en móvil el <img> se queda
     con un GIF de 1 px y no descarga los 70-140 KB de la foto (LCP, design-system §10).
 
-    Fotos de ilustración (Unsplash, licencia libre; créditos en design-system §13.1):
-    no son médicos del directorio, por eso no llevan nombre.
+    Fotos de ilustración (Unsplash; créditos en design-system §13.1). No son médicos del
+    directorio: las tarjetas nunca dicen nada de la persona de la foto (ni nombre ni
+    "verificado"), solo del directorio.
 --}}
+@props(['total', 'place'])
 <div {{ $attributes->class('hero-media') }} aria-hidden="true">
     <span class="hero-shape hero-shape-gold"></span>
     <span class="hero-shape hero-shape-petrol"></span>
@@ -31,24 +33,23 @@
         >
     </picture>
 
-    <div class="float-card -left-10 top-[16%]">
-        <span class="float-card-icon bg-success text-success-solid">
-            <x-heroicon-m-shield-check class="size-6" />
+    <div class="float-card -left-12 top-[14%]">
+        <span class="float-card-icon bg-primary text-primary-fg">
+            <x-heroicon-m-user-group class="size-5" />
         </span>
         <span>
-            <span class="block text-sm font-semibold text-fg">Licencia verificada</span>
-            <span class="block text-xs text-fg-muted">Busca el escudo verde</span>
+            <span class="block text-xl font-extrabold leading-tight text-fg">{{ number_format($total, 0, ',', '.') }}</span>
+            <span class="block text-xs text-fg-muted">médicos en {{ $place }}</span>
         </span>
     </div>
 
-    <div class="float-card float-card-delay -right-6 bottom-[12%]">
-        <img src="/images/home/doctor-coat-160.webp" alt="" width="40" height="40" class="avatar" style="--avatar-size: 2.5rem" loading="lazy">
-        <span>
-            <span class="block text-sm font-semibold text-fg">Escríbele por WhatsApp</span>
-            <span class="block text-xs text-fg-muted">Directo al consultorio</span>
-        </span>
-        <span class="float-card-icon bg-primary-soft text-primary">
+    <div class="float-card float-card-delay -right-8 bottom-[12%]">
+        <span class="float-card-icon bg-premium text-brand-fg">
             <x-heroicon-o-chat-bubble-left-right class="size-5" />
+        </span>
+        <span>
+            <span class="block text-sm font-semibold text-fg">Llama o escribe por WhatsApp</span>
+            <span class="block text-xs text-fg-muted">Directo al consultorio, sin intermediarios</span>
         </span>
     </div>
 </div>

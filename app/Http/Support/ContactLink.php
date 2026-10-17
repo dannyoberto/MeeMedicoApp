@@ -9,6 +9,7 @@ use App\Models\DoctorContact;
 use Illuminate\Support\Collection;
 use libphonenumber\NumberParseException;
 use libphonenumber\PhoneNumberFormat;
+use libphonenumber\PhoneNumberType;
 use libphonenumber\PhoneNumberUtil;
 
 /**
@@ -28,6 +29,8 @@ final readonly class ContactLink
         public string $display,
         public ContactEventType $event,
         public bool $external,
+        /** Qué teléfono es ("Móvil", "Fijo" o la etiqueta del contacto): dos "Llamar" iguales no se distinguen. */
+        public ?string $kind = null,
     ) {}
 
     /**
@@ -45,11 +48,17 @@ final readonly class ContactLink
         $value = trim($contact->value);
         $phone = $contact->value_normalized ?: preg_replace('/[^\d+]/', '', $value);
         $phoneDisplay = self::formatPhone($contact->value_normalized) ?? $value;
+        $kind = filled($contact->label) ? trim($contact->label) : match ($contact->type) {
+            // Muchos imports marcan todo como "phone": el número dice si es móvil o fijo.
+            ContactType::Phone, ContactType::Mobile => self::phoneKind($contact->value_normalized)
+                ?? ($contact->type === ContactType::Mobile ? 'Móvil' : 'Fijo'),
+            default => null,
+        };
 
         return match ($contact->type) {
             ContactType::Phone, ContactType::Mobile => $phone === ''
                 ? null
-                : new self($contact->type, "tel:{$phone}", $phoneDisplay, ContactEventType::Phone, false),
+                : new self($contact->type, "tel:{$phone}", $phoneDisplay, ContactEventType::Phone, false, $kind),
             ContactType::Whatsapp => ($digits = preg_replace('/\D/', '', $phone)) === ''
                 ? null
                 : new self($contact->type, "https://wa.me/{$digits}?text=".rawurlencode(self::WHATSAPP_GREETING), $phoneDisplay, ContactEventType::Whatsapp, true),
@@ -82,6 +91,29 @@ final readonly class ContactLink
             ])
             ->map(fn (array $pair) => $pair[0])
             ->values();
+    }
+
+    /**
+     * "Móvil" o "Fijo" según el plan de numeración del país, o null si no se sabe
+     * (números que pueden ser ambas cosas, o sin normalizar).
+     */
+    private static function phoneKind(?string $e164): ?string
+    {
+        if ($e164 === null || $e164 === '') {
+            return null;
+        }
+
+        $util = PhoneNumberUtil::getInstance();
+
+        try {
+            return match ($util->getNumberType($util->parse($e164))) {
+                PhoneNumberType::MOBILE => 'Móvil',
+                PhoneNumberType::FIXED_LINE => 'Fijo',
+                default => null,
+            };
+        } catch (NumberParseException) {
+            return null;
+        }
     }
 
     /**

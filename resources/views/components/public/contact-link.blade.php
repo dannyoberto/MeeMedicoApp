@@ -20,7 +20,7 @@
     <x-dynamic-component :component="$link->icon()" class="size-5 shrink-0" aria-hidden="true" />
     @if ($showValue)
         <span class="min-w-0 text-left">
-            <span class="block">{{ $link->label() }}</span>
+            <span class="block">{{ $link->label() }}@if ($link->kind) <span class="font-normal opacity-80">· {{ $link->kind }}</span>@endif</span>
             <span class="block text-sm font-normal opacity-80 [overflow-wrap:anywhere]">{{ $link->display }}</span>
         </span>
     @else

@@ -18,7 +18,7 @@ Este documento es la referencia para cualquier persona o agente (incluido Claude
 | D4 | Tokens definidos **una sola vez** en CSS (`@theme`), consumidos por Blade y React vía utilidades Tailwind | Requisito del proyecto. No existe un objeto de tema en JavaScript. |
 | D5 | Paleta por defecto de Tailwind **eliminada** (`--color-*: initial`) | Impide que alguien use `bg-pink-500` y rompa la coherencia. Solo existen los colores del sistema. |
 | D6 | Componentes base como **clases CSS** (`.btn`, `.field`, `.badge`, `.alert`, `.card`) | Blade y React comparten exactamente el mismo estilo sin duplicar cadenas de utilidades. Funcionan sin JavaScript. |
-| D7 | **Una sola familia tipográfica** (Inter variable, autoalojada) | Presupuesto de rendimiento y legibilidad. Se descarta una segunda fuente para títulos. |
+| D7 | **Una sola familia tipográfica** (Inter variable, autoalojada) | Presupuesto de rendimiento y legibilidad. Se descarta una segunda fuente para títulos. El carácter de los titulares viene del peso (700–800) y el tamaño, con el mismo archivo variable (octubre de 2026, §5). |
 | D8 | Filament con su layout **por defecto**, personalizado solo con colores, fuente y logo | Mantener Filament actualizable. Personalizarlo a fondo genera deuda en cada actualización mayor. |
 | D9 | Las capturas de Creative Tim son **solo inspiración** | Sirven como inventario de patrones, no como estética. Filament ya resuelve esos patrones. |
 | D10 | Iconos **Heroicons** en todo el producto | Es el set nativo de Filament; en Blade se renderiza como SVG inline (0 KB de JS). |
@@ -174,7 +174,9 @@ Ambos pueden coexistir en un mismo perfil, pero nunca deben parecerse. Si en el 
 | `text-3xl` | 30 px | 38 px | h1 móvil / h2 escritorio |
 | `text-4xl` | 36 px | 44 px | h1 escritorio |
 
-**Pesos:** `font-normal` (400) para cuerpo, `font-medium` (500) para etiquetas y botones, `font-semibold` (600) para títulos. No existen *light* ni *bold*.
+**Pesos:** `font-normal` (400) para cuerpo, `font-medium` (500) para etiquetas y botones, `font-semibold` (600) para títulos menores, `font-bold` (700) para `h1`/`h2` con `tracking-tight`, y `font-extrabold` (800) solo para el hero (`.hero-title`) y cifras destacadas (`.stat-number`). No existe *light*.
+
+**Escala de titulares** (octubre de 2026, para dar impacto sin una segunda fuente): `text-5xl` 48 px para títulos de sección (`.section-title`) y `text-6xl` 60 px para el hero. El archivo Inter variable cubre 100–900, así que no hay descarga extra.
 
 **Reglas:**
 
@@ -202,7 +204,18 @@ La portada (`/`) y la home de cada país (`/{pais}`) son la puerta de entrada y 
 - Tarjetas flotantes con `shadow-md` y una animación de flotación de 6 s, que se apaga con `prefers-reduced-motion`.
 - Títulos de hasta 3,5 rem (`hero-title`).
 
-Lo que **no** cambia: sin gradientes, verde solo para "verificado", oro + estrella solo para premium, y el resto del sitio (ficha, listados, búsqueda) sigue sobrio y orientado a la tarea.
+Lo que **no** cambia: sin gradientes de color, verde solo para "verificado", oro + estrella solo para premium.
+
+**Banda oscura en todas las páginas públicas (`.band-dark`, `<x-public.page-hero>`).** Listado, especialidad, búsqueda y ficha abren con una banda petróleo con textura de puntos de 1 px (un patrón, no un degradado), titular grande en blanco y cifras en oro (`.stat-number`, oro sobre petróleo 5,7:1). En la ficha, la tarjeta del médico se monta sobre la banda. Debajo de la banda, el contenido de tarea (tarjetas, contactos, direcciones) sigue limpio y en claro.
+
+Dentro de la banda: enlaces y titulares en blanco, texto secundario con `.text-muted-inverse`, chips translúcidos y el chip activo en blanco. El foco del buscador grande es blanco sobre la banda y petróleo fuera de ella. Nunca oro como estado.
+
+### 6.2 Movimiento
+
+- **Transiciones entre páginas:** View Transitions entre documentos (`@view-transition { navigation: auto }`). La foto y el nombre de la tarjeta llevan `view-transition-name: photo-{id}` / `name-{id}` y "vuelan" a la ficha. Es el único `style` inline permitido además de variables CSS.
+- **Aparición al hacer scroll:** `.reveal`, con `animation-timeline: view()`. Sin soporte, el contenido se ve sin animar. Nunca en el hero, que es el LCP.
+- **Precarga:** Speculation Rules (`<script type="speculationrules">` en el layout) prerenderizan las páginas internas al pasar el cursor. Excluye `/buscar` y los enlaces de contacto.
+- **Accesibilidad:** todo se apaga con `prefers-reduced-motion`.
 
 ---
 
@@ -510,6 +523,16 @@ Variantes necesarias:
 | Isotipo oro / tinta | Favicon, avatar por defecto, futura app, futuro pin de mapa |
 
 El logo original en oro **no debe usarse sobre blanco**: la palabra "Medico" en peso ligero pierde legibilidad (2,1:1).
+
+**Archivos actuales (provisionales, hasta tener el vector oficial):** los SVG `logo-horizontal-ink.svg` e `isotipo.svg` solo envuelven un PNG en base64 (~70 KB cada uno), así que el sitio público usa versiones rasterizadas al tamaño de uso:
+
+| Archivo | Uso | Peso |
+|---|---|---|
+| `logo-horizontal-ink@2x.png` | Cabecera (182×64, mostrado a 32 px) | 4,9 KB |
+| `logo-horizontal-gold@2x.png` | Pie, sobre petróleo | 12 KB |
+| `isotipo-64.png`, `isotipo-180.png` | Favicon y `apple-touch-icon` | 6 / 24 KB |
+
+Cuando exista el SVG vectorial oficial (< 3 KB), sustituye a todos. El backoffice sigue usando los SVG.
 
 ### 13.1 Fotografía
 

@@ -14,6 +14,7 @@
     -webkit-font-smoothing: antialiased;
   }
   h1, h2, h3, h4 { font-weight: var(--font-weight-semibold); text-wrap: balance; color: var(--color-fg); }
+  h1, h2 { font-weight: var(--font-weight-bold); letter-spacing: var(--tracking-tight); }
   p { text-wrap: pretty; }
   a { color: var(--color-fg-link); text-underline-offset: 0.2em; }
   :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: var(--radius-sm); }
@@ -142,10 +143,40 @@
   .eyebrow-dot { width: 0.5rem; height: 0.5rem; border-radius: var(--radius-full); background: var(--color-brand); }
 
   .hero-title {
-    font-size: 2.25rem; line-height: 1.1; letter-spacing: -0.02em;
-    font-weight: var(--font-weight-semibold);
+    font-size: 2.625rem; line-height: 1.05; letter-spacing: var(--tracking-tighter);
+    font-weight: var(--font-weight-extrabold);
   }
-  @media (min-width: 64rem) { .hero-title { font-size: 3.5rem; line-height: 1.05; } }
+  @media (min-width: 64rem) { .hero-title { font-size: var(--text-6xl); line-height: var(--text-6xl--line-height); } }
+
+  .section-title {
+    font-size: var(--text-3xl); line-height: 1.12; letter-spacing: var(--tracking-tight);
+    font-weight: var(--font-weight-bold);
+  }
+  @media (min-width: 48rem) { .section-title { font-size: var(--text-5xl); line-height: var(--text-5xl--line-height); } }
+
+  /* Banda oscura de marca con textura de puntos (no es un degradado de color: es un
+     patrón de 1 px). La usan el hero y la cabecera de listados, búsqueda y ficha. */
+  .band-dark {
+    position: relative; isolation: isolate;
+    background-color: var(--color-surface-inverse);
+    background-image: radial-gradient(rgb(255 255 255 / 0.07) 1px, transparent 1.5px);
+    background-size: 22px 22px;
+    color: var(--color-fg-inverse);
+  }
+  .band-dark :is(h1, h2, h3) { color: var(--color-fg-inverse); }
+  .band-dark .eyebrow { background: rgb(255 255 255 / 0.1); color: var(--color-fg-inverse); }
+  .band-dark a:not(.btn, .chip, .search-suggestion, .specialty-tile, .card) { color: var(--color-fg-inverse); }
+  .band-dark .text-muted-inverse { color: rgb(255 255 255 / 0.78); }
+  .band-dark .hero-highlight { color: var(--color-brand); }
+  .band-dark .hero-highlight::after { background: rgb(255 255 255); opacity: 0.12; }
+  .band-dark .chip { border-color: rgb(255 255 255 / 0.25); background: rgb(255 255 255 / 0.08); color: var(--color-fg-inverse); }
+  .band-dark .chip:hover { background: rgb(255 255 255 / 0.16); border-color: rgb(255 255 255 / 0.5); }
+  .band-dark .chip-count { color: rgb(255 255 255 / 0.65); }
+  /* Sobre petróleo, el oro translúcido se ve oliva: va sólido. */
+  .band-dark .hero-shape-gold { opacity: 1; }
+  .band-dark .hero-shape-petrol { background: var(--petrol-600); }
+  .band-dark .hero-shape-ring { border-color: rgb(255 255 255 / 0.3); }
+  .band-dark .chip-active, .band-dark .chip-active:hover { background: var(--color-surface); border-color: var(--color-surface); color: var(--color-primary); }
   /* Trazo dorado bajo la palabra clave: el oro como marca, nunca como estado. */
   .hero-highlight { position: relative; isolation: isolate; white-space: nowrap; color: var(--color-primary); }
   .hero-highlight::after {
@@ -204,6 +235,9 @@
     transition: background-color 150ms, color 150ms;
   }
   .specialty-tile:hover .specialty-tile-icon { background: var(--color-primary); color: var(--color-primary-fg); }
+  /* Variante decorativa en oro de marca (solo marketing, §6.1): ritmo visual en la rejilla. */
+  .specialty-tile-gold .specialty-tile-icon { background: var(--gold-100); color: var(--color-brand-fg); }
+  .specialty-tile-gold:hover .specialty-tile-icon { background: var(--color-brand); color: var(--gold-950); }
 
   .step-number {
     display: inline-flex; align-items: center; justify-content: center;
@@ -258,17 +292,20 @@
     object-fit: cover;
     background: var(--color-surface-muted);
   }
+  /* Sin foto: iniciales en petróleo con anillo de marca, no un círculo gris. */
   .avatar-initials {
     display: inline-flex; align-items: center; justify-content: center;
-    background: var(--color-primary-soft); color: var(--color-primary-soft-fg);
-    font-weight: var(--font-weight-semibold);
+    background: var(--petrol-700); color: var(--color-fg-inverse);
+    box-shadow: inset 0 0 0 3px var(--petrol-600), 0 0 0 3px var(--gold-100);
+    font-weight: var(--font-weight-bold);
     font-size: calc(var(--avatar-size, 3.5rem) * 0.36);
     letter-spacing: 0.02em;
     user-select: none;
   }
 
   /* ---------- Tarjeta de médico: toda la tarjeta lleva a la ficha ---------- */
-  .doctor-card { position: relative; }
+  .doctor-card { position: relative; transition: transform 160ms, box-shadow 160ms, border-color 160ms; }
+  .doctor-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--petrol-200); }
   .doctor-card-link { color: var(--color-fg); text-decoration: none; }
   .doctor-card-link::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
   .doctor-card:hover .doctor-card-link { color: var(--color-fg-link); }
@@ -286,9 +323,20 @@
     color: var(--color-fg-subtle); pointer-events: none;
   }
   .search-form .btn { flex-shrink: 0; }
+  /* Grande: tarjeta blanca elevada con el campo sin borde y el botón dentro. */
+  .search-form-lg {
+    padding: 0.5rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 1.25rem;
+    box-shadow: 0 18px 40px -12px rgb(8 30 38 / 0.35), 0 2px 6px rgb(8 30 38 / 0.08);
+  }
+  .search-form-lg:focus-within { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+  .band-dark .search-form-lg:focus-within { outline-color: var(--color-fg-inverse); }
   .search-form-lg .input, .search-form-lg .btn { min-height: 3.5rem; }
-  .search-form-lg .input { font-size: 1.0625rem; border-radius: var(--radius-lg); }
-  .search-form-lg .btn { border-radius: var(--radius-lg); padding-inline: 1.25rem; }
+  .search-form-lg .input { font-size: 1.0625rem; border-color: transparent; border-radius: var(--radius-lg); }
+  .search-form-lg .input:focus-visible { outline: none; border-color: transparent; }
+  .search-form-lg .btn { border-radius: 0.875rem; padding-inline: 1.5rem; font-weight: var(--font-weight-semibold); }
   .search-form input[type="search"]::-webkit-search-cancel-button { display: none; }
 
   .search-suggestions {
@@ -328,10 +376,41 @@
     border-top: 1px solid var(--color-border);
     box-shadow: 0 -4px 12px rgb(15 22 26 / 0.06);
   }
-  .contact-bar > .btn { flex: 1; }
+  .contact-bar > .btn { flex: 1; min-width: 0; }
   .has-contact-bar { padding-bottom: calc(4.75rem + env(safe-area-inset-bottom)); }
   @media (min-width: 48rem) {
     .contact-bar { display: none; }
     .has-contact-bar { padding-bottom: 0; }
   }
+
+  /* ---------- Cifra destacada (cabeceras de listado y especialidad) ---------- */
+  .stat-number {
+    font-size: var(--text-4xl); line-height: 1; letter-spacing: var(--tracking-tighter);
+    font-weight: var(--font-weight-extrabold); color: var(--color-brand);
+  }
+
+  /* ---------- Movimiento (design-system §6.2) ---------- */
+  /* Aparición al entrar en pantalla, con scroll-driven animations: CSS puro. Donde el
+     navegador no las soporta, el contenido se ve sin animar. */
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
+  }
+  @keyframes reveal { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal, .float-card { animation: none !important; }
+  }
+}
+
+/* Transiciones entre páginas (View Transitions entre documentos): la foto y el nombre de
+   la tarjeta se convierten en los de la ficha. Sin JavaScript; los navegadores que no lo
+   soportan navegan como siempre. view-transition-name se pone por médico en Blade. */
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 180ms; }
+::view-transition-group(*) { animation-duration: 280ms; animation-timing-function: cubic-bezier(0.2, 0, 0, 1); }
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
 }

@@ -40,9 +40,21 @@
     @endif
     <meta property="og:locale" content="{{ $country ? 'es_'.$country->code : 'es_LA' }}">
 
-    <link rel="icon" href="/images/brand/isotipo.svg" type="image/svg+xml">
+    <link rel="icon" href="/images/brand/isotipo-64.png" type="image/png" sizes="64x64">
+    <link rel="apple-touch-icon" href="/images/brand/isotipo-180.png">
     <link rel="preload" href="/fonts/InterVariable-latin.woff2" as="font" type="font/woff2" crossorigin>
     @vite(['resources/css/app.css', 'resources/js/app.ts'])
+
+    {{-- Precarga la ficha o el listado al pasar el cursor o el dedo (Speculation Rules):
+         navegación casi instantánea sin JavaScript. Son páginas sin sesión y cacheadas
+         en el CDN, así que prerenderizarlas es seguro. --}}
+    <script type="speculationrules">
+        {"prerender": [{"where": {"and": [
+            {"href_matches": "/*"},
+            {"not": {"href_matches": "/*/buscar*"}},
+            {"not": {"selector_matches": "[data-contact], [target=_blank]"}}
+        ]}, "eagerness": "moderate"}]}
+    </script>
 
     @foreach ($jsonLd as $block)
         <script type="application/ld+json">{!! json_encode($block, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) !!}</script>
@@ -54,7 +66,7 @@
     <header class="border-b border-border bg-surface">
         <div class="mx-auto flex h-16 max-w-content items-center gap-4 px-4">
             <a href="{{ $homeUrl }}" class="shrink-0" aria-label="MeeMedico, inicio">
-                <img src="/images/brand/logo-horizontal-ink.svg" alt="MeeMedico" width="91" height="32" class="h-8 w-auto">
+                <img src="/images/brand/logo-horizontal-ink@2x.png" alt="MeeMedico" width="91" height="32" class="h-8 w-auto">
             </a>
 
             @if ($country && $headerSearch)
@@ -75,8 +87,9 @@
     <footer class="mt-16 bg-surface-inverse text-fg-inverse">
         <div class="mx-auto grid max-w-content gap-8 px-4 py-10 md:grid-cols-[minmax(0,1fr)_auto]">
             <div class="max-w-prose">
-                <p class="font-semibold text-fg-inverse">MeeMedico</p>
-                <p class="mt-2 text-sm text-fg-inverse/80">
+                {{-- El logo en oro solo va sobre petróleo oscuro (design-system §13). --}}
+                <img src="/images/brand/logo-horizontal-gold@2x.png" alt="MeeMedico" width="91" height="32" class="h-8 w-auto" loading="lazy">
+                <p class="mt-4 text-sm text-fg-inverse/80">
                     Directorio de médicos para encontrar al especialista que necesitas y contactarlo directo,
                     sin intermediarios. MeeMedico no presta servicios médicos ni gestiona citas.
                 </p>
